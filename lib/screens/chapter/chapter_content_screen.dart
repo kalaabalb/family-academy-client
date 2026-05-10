@@ -2739,40 +2739,41 @@ class NoteDetailScreen extends StatelessWidget {
   Widget _buildTextContent(BuildContext context, String content) {
     final isDesktop = ScreenSize.isDesktop(context);
     final isTablet = ScreenSize.isTablet(context);
+    final isPhone = !isDesktop && !isTablet;
     // Increased max widths: desktop 760→860, tablet 680→760
     final paperWidth = isDesktop ? 860.0 : (isTablet ? 760.0 : double.infinity);
 
     return SingleChildScrollView(
-      // FIX 8: Increased screen padding for more breathing room
       padding: EdgeInsets.symmetric(
-        horizontal: isDesktop ? 24 : (isTablet ? 20 : 16),
+        horizontal: isPhone ? 0 : (isDesktop ? 24 : 20),
         vertical: isDesktop ? 28 : (isTablet ? 24 : 20),
       ),
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: paperWidth),
           child: Container(
-            // FIX 8: Increased internal padding for more breathing room
             padding: EdgeInsets.symmetric(
-              horizontal: isDesktop ? 56 : (isTablet ? 44 : 28),
+              horizontal: isPhone ? 16 : (isDesktop ? 56 : 44),
               vertical: isDesktop ? 48 : (isTablet ? 40 : 32),
             ),
-            decoration: BoxDecoration(
-              color: AppColors.getSurface(context),
-              borderRadius: BorderRadius.circular(
-                ResponsiveValues.radiusXLarge(context),
-              ),
-              border: Border.all(
-                color: AppColors.getDivider(context).withValues(alpha: 0.65),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 24,
-                  offset: const Offset(0, 12),
-                ),
-              ],
-            ),
+            decoration: isPhone
+                ? null
+                : BoxDecoration(
+                    color: AppColors.getSurface(context),
+                    borderRadius: BorderRadius.circular(
+                      ResponsiveValues.radiusXLarge(context),
+                    ),
+                    border: Border.all(
+                      color: AppColors.getDivider(context).withValues(alpha: 0.65),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.06),
+                        blurRadius: 24,
+                        offset: const Offset(0, 12),
+                      ),
+                    ],
+                  ),
             child: SelectionContainer.disabled(
               child: HtmlWidget(
                 content,

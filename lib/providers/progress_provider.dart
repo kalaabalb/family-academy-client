@@ -50,6 +50,7 @@ class ProgressProvider extends ChangeNotifier
 
   final Set<int> _pendingSaves = {};
   final Map<int, Timer> _saveDebounceTimers = {};
+  final Map<int, double> _pendingStudyTimeMinutes = {};
 
   Box? _progressBox;
   Box? _statsBox;
@@ -105,6 +106,7 @@ class ProgressProvider extends ChangeNotifier
         notesViewed: data['notes_viewed'],
         questionsAttempted: data['questions_attempted'],
         questionsCorrect: data['questions_correct'],
+        studyTimeMinutes: Parsers.parseDouble(data['study_time_minutes']),
       );
       return response.success;
     } catch (e) {
@@ -162,6 +164,7 @@ class ProgressProvider extends ChangeNotifier
     }
     _saveDebounceTimers.clear();
     _pendingSaves.clear();
+    _pendingStudyTimeMinutes.clear();
 
     stopBackgroundRefresh();
     _lastBackgroundRefresh = null;
@@ -471,13 +474,14 @@ class ProgressProvider extends ChangeNotifier
     final accuracyPercentage = totalQuestionsAttempted > 0
         ? (totalQuestionsCorrect / totalQuestionsAttempted) * 100
         : 0.0;
-    final derivedStudyMinutes = _userProgress.fold<double>(
-      0,
-      (sum, progress) => sum + (progress.videoProgress * 0.5),
-    );
+    final existingStudyMinutes =
+        Parsers.parseDouble(existingStats['study_time_minutes']);
     final existingStudyHours =
         Parsers.parseDouble(existingStats['study_time_hours']);
-    final derivedStudyHours = derivedStudyMinutes / 60;
+    final effectiveStudyMinutes = existingStudyMinutes > 0
+        ? existingStudyMinutes
+        : existingStudyHours * 60;
+    final derivedStudyHours = effectiveStudyMinutes / 60;
 
     return {
       ...existingStats,
@@ -497,11 +501,10 @@ class ProgressProvider extends ChangeNotifier
       'average_video_progress':
           double.parse(averageVideoProgress.toStringAsFixed(2)),
       'videos_completed': videosCompleted,
+      'study_time_minutes':
+          double.parse(effectiveStudyMinutes.toStringAsFixed(1)),
       'study_time_hours': double.parse(
-        (derivedStudyHours > existingStudyHours
-                ? derivedStudyHours
-                : existingStudyHours)
-            .toStringAsFixed(1),
+        derivedStudyHours.toStringAsFixed(1),
       ),
       'streak_count': streakCount,
       'last_streak_date': lastStreakDate,
@@ -560,6 +563,10 @@ class ProgressProvider extends ChangeNotifier
       'videos_completed': [
         Parsers.parseInt(serverStats['videos_completed']),
         Parsers.parseInt(localStats['videos_completed']),
+      ].reduce((a, b) => a > b ? a : b),
+      'study_time_minutes': [
+        Parsers.parseDouble(serverStats['study_time_minutes']),
+        Parsers.parseDouble(localStats['study_time_minutes']),
       ].reduce((a, b) => a > b ? a : b),
       'study_time_hours': [
         Parsers.parseDouble(serverStats['study_time_hours']),
@@ -910,6 +917,7 @@ class ProgressProvider extends ChangeNotifier
         'total_notes_viewed': 0,
         'average_video_progress': 0.0,
         'videos_completed': 0,
+        'study_time_minutes': 0.0,
         'study_time_hours': 0.0,
         'streak_count': 0,
         'last_streak_date': null,
@@ -973,6 +981,7 @@ class ProgressProvider extends ChangeNotifier
     bool? notesViewed,
     int? questionsAttempted,
     int? questionsCorrect,
+    double? studyTimeMinutes,
   }) async {
     log('saveChapterProgress() for chapter $chapterId');
 
@@ -994,6 +1003,11 @@ class ProgressProvider extends ChangeNotifier
       _progressByChapter[chapterId] = mergedProgress;
       _userProgress = _progressByChapter.values.toList();
       await _saveToLocalCache(chapterId, mergedProgress);
+      if (studyTimeMinutes != null && studyTimeMinutes > 0) {
+        _pendingStudyTimeMinutes[chapterId] =
+            (_pendingStudyTimeMinutes[chapterId] ?? 0) + studyTimeMinutes;
+      }
+      _accumulateStudyTime(studyTimeMinutes);
       await _syncLocalOverallStats();
       _progressUpdateController.add(_userProgress);
       _chapterProgressController.add(_progressByChapter);
@@ -1004,6 +1018,7 @@ class ProgressProvider extends ChangeNotifier
 
         try {
           final progressToPersist = _progressByChapter[chapterId];
+          final studyTimeToPersist = _pendingStudyTimeMinutes[chapterId];
           if (progressToPersist == null) {
             completer.complete();
             return;
@@ -1017,6 +1032,7 @@ class ProgressProvider extends ChangeNotifier
                 notesViewed: progressToPersist.notesViewed,
                 questionsAttempted: progressToPersist.questionsAttempted,
                 questionsCorrect: progressToPersist.questionsCorrect,
+                studyTimeMinutes: studyTimeToPersist,
               );
               _lastServerSyncAt = DateTime.now();
               log('✅ Progress saved to API for chapter $chapterId');
@@ -1031,12 +1047,20 @@ class ProgressProvider extends ChangeNotifier
               completer.complete();
             } catch (apiError) {
               log('⚠️ API error, queuing for later: $apiError');
-              await _markAsPendingSync(chapterId, progressToPersist);
+              await _markAsPendingSync(
+                chapterId,
+                progressToPersist,
+                studyTimeMinutes: studyTimeToPersist,
+              );
               completer.complete();
             }
           } else {
             log('📝 Offline, queuing progress for chapter $chapterId');
-            await _markAsPendingSync(chapterId, progressToPersist);
+            await _markAsPendingSync(
+              chapterId,
+              progressToPersist,
+              studyTimeMinutes: studyTimeToPersist,
+            );
             completer.complete();
           }
         } catch (e) {
@@ -1045,6 +1069,7 @@ class ProgressProvider extends ChangeNotifier
         } finally {
           _pendingSaves.remove(chapterId);
           _saveDebounceTimers.remove(chapterId);
+          _pendingStudyTimeMinutes.remove(chapterId);
           safeNotify();
         }
       });
@@ -1054,6 +1079,28 @@ class ProgressProvider extends ChangeNotifier
       log('Error saving progress: $e');
       rethrow;
     }
+  }
+
+  void _accumulateStudyTime(double? studyTimeMinutes) {
+    if (studyTimeMinutes == null || studyTimeMinutes <= 0) return;
+
+    final existingStats = _convertToMapString(_overallStats['stats']);
+    final currentMinutes =
+        Parsers.parseDouble(existingStats['study_time_minutes']);
+    final currentHours = Parsers.parseDouble(existingStats['study_time_hours']);
+    final baselineMinutes =
+        currentMinutes > 0 ? currentMinutes : currentHours * 60;
+    final updatedMinutes = baselineMinutes + studyTimeMinutes;
+
+    _overallStats = {
+      ..._overallStats,
+      'stats': {
+        ...existingStats,
+        'study_time_minutes': double.parse(updatedMinutes.toStringAsFixed(1)),
+        'study_time_hours':
+            double.parse((updatedMinutes / 60).toStringAsFixed(1)),
+      },
+    };
   }
 
   Future<void> _saveToLocalCache(int chapterId, UserProgress progress) async {
@@ -1086,7 +1133,11 @@ class ProgressProvider extends ChangeNotifier
     }
   }
 
-  Future<void> _markAsPendingSync(int chapterId, UserProgress progress) async {
+  Future<void> _markAsPendingSync(
+    int chapterId,
+    UserProgress progress, {
+    double? studyTimeMinutes,
+  }) async {
     try {
       final userId = await _ensureCurrentUserScope();
       if (userId == null) return;
@@ -1099,6 +1150,9 @@ class ProgressProvider extends ChangeNotifier
           'notes_viewed': progress.notesViewed,
           'questions_attempted': progress.questionsAttempted,
           'questions_correct': progress.questionsCorrect,
+          if (studyTimeMinutes != null && studyTimeMinutes > 0)
+            'study_time_minutes':
+                double.parse(studyTimeMinutes.toStringAsFixed(2)),
           'userId': userId,
           'timestamp': DateTime.now().toIso8601String(),
         },
@@ -1133,6 +1187,7 @@ class ProgressProvider extends ChangeNotifier
     }
     _saveDebounceTimers.clear();
     _pendingSaves.clear();
+    _pendingStudyTimeMinutes.clear();
     _activeUserId = null;
 
     final userId = await session.getCurrentUserId();

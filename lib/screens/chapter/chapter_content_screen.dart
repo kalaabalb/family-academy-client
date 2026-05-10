@@ -52,7 +52,6 @@ import '../../utils/helpers.dart';
 import '../../utils/platform_helper.dart';
 import '../../utils/constants.dart';
 import '../../utils/responsive.dart';
-import '../../utils/screen_protection.dart';
 
 class ChapterContentScreen extends StatefulWidget {
   final int chapterId;
@@ -110,6 +109,9 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
   bool _isPlayerInitialized = false;
   String? _currentPlaybackQualityLabel;
   double _currentPlaybackSpeed = 1.0;
+  double _currentVolume = 1.0;
+  bool _showVolumeSlider = false;
+  DateTime? _videoPlaybackStartedAt;
   StateSetter? _videoDialogStateSetter;
 
   // Practice questions state
@@ -270,6 +272,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
     _isPlayerInitialized = false;
     _currentPlaybackQualityLabel = null;
     _currentPlaybackSpeed = 1.0;
+    _videoPlaybackStartedAt = null;
     _videoDialogStateSetter = null;
 
     try {
@@ -868,6 +871,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
         _isVideoDialogOpen = true;
         _isPlayerInitialized = false;
         _currentPlaybackQualityLabel = AppStrings.offlineQuality;
+        _videoPlaybackStartedAt = DateTime.now();
       });
 
       final file = File(localPath);
@@ -903,19 +907,14 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
         debugLog('VideoCard', 'MediaKit error: $error');
       });
 
-      await _mediaKitPlayer!.setVolume(100);
+      await _mediaKitPlayer!.setVolume(_currentVolume * 100);
       await _mediaKitPlayer!.open(media_kit.Media(localPath));
 
       if (!isMounted) return;
 
       _refreshVideoUi(() => _isPlayerInitialized = true);
       await _videoProvider.incrementViewCount(video.id);
-
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => _buildVideoDialog(video),
-      );
+      await _showVideoPlayerRoute(video);
     } catch (e) {
       debugLog('VideoCard', 'MediaKit error: $e');
       rethrow;
@@ -930,6 +929,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
         _isPlayingVideo = true;
         _isVideoDialogOpen = true;
         _isPlayerInitialized = false;
+        _videoPlaybackStartedAt = DateTime.now();
       });
 
       if (PlatformHelper.isLinux) {
@@ -965,7 +965,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
         debugLog('VideoCard', 'MediaKit error: $error');
       });
 
-      await _mediaKitPlayer!.setVolume(100);
+      await _mediaKitPlayer!.setVolume(_currentVolume * 100);
       await _mediaKitPlayer!.open(media_kit.Media(videoUrl));
       await _mediaKitPlayer!.setRate(_currentPlaybackSpeed);
 
@@ -973,12 +973,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
 
       setState(() => _isPlayerInitialized = true);
       await _videoProvider.incrementViewCount(video.id);
-
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => _buildVideoDialog(video),
-      );
+      await _showVideoPlayerRoute(video);
     } catch (e) {
       debugLog('VideoCard', 'MediaKit error: $e');
       rethrow;
@@ -1011,32 +1006,23 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
       _videoController = controller;
 
       await controller.initialize();
+      await controller.setLooping(false);
       await controller.setPlaybackSpeed(_currentPlaybackSpeed);
+      await controller.setVolume(_currentVolume);
       debugLog('VideoCard', 'Video initialized: ${controller.value.duration}');
 
       if (!isMounted) return;
 
       await _videoProvider.incrementViewCount(video.id);
 
-      if (PlatformHelper.isMobile) {
-        ScreenProtectionService.disable();
-      }
-
       _chewieController = ChewieController(
         videoPlayerController: controller,
         autoPlay: true,
         playbackSpeeds: [0.5, 0.75, 1.0, 1.25, 1.5],
-        deviceOrientationsOnEnterFullScreen: const [
-          DeviceOrientation.portraitUp,
-          DeviceOrientation.portraitDown,
-          DeviceOrientation.landscapeLeft,
-          DeviceOrientation.landscapeRight,
-        ],
-        deviceOrientationsAfterFullScreen: const [
-          DeviceOrientation.portraitUp,
-          DeviceOrientation.portraitDown,
-        ],
-        systemOverlaysOnEnterFullScreen: const [],
+        allowedScreenSleep: false,
+        allowFullScreen: false,
+        allowMuting: false,
+        allowPlaybackSpeedChanging: false,
       );
 
       _refreshVideoUi(() => _isPlayerInitialized = true);
@@ -1047,39 +1033,100 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
 
       if (!isMounted) return;
 
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => _buildVideoDialog(video),
-      );
+      await _showVideoPlayerRoute(video);
     } catch (e) {
       debugLog('VideoCard', 'VideoPlayer error: $e');
       rethrow;
     }
   }
 
-  Widget _buildVideoDialog(Video video) {
+  Future<void> _showVideoPlayerRoute(Video video) async {
+    await _prepareVideoPlaybackSession();
+    await Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: true,
+        barrierDismissible: false,
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            _buildVideoPlayerPage(video),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
+  }
+
+  Future<void> _prepareVideoPlaybackSession() async {
+    try {
+      await SystemChrome.setEnabledSystemUIMode(
+        SystemUiMode.immersiveSticky,
+        overlays: [],
+      );
+      await SystemChrome.setPreferredOrientations(const [
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    } catch (e) {
+      debugLog('VideoCard', 'Error preparing playback session: $e');
+    }
+  }
+
+  Future<void> _setPlaybackOrientation(DeviceOrientation orientation) async {
+    try {
+      await SystemChrome.setPreferredOrientations([orientation]);
+    } catch (e) {
+      debugLog('VideoCard', 'Error setting orientation: $e');
+    }
+  }
+
+  Future<void> _updatePlaybackVolume(double value) async {
+    final clamped = value.clamp(0.0, 1.0);
+    _refreshVideoUi(() => _currentVolume = clamped);
+
+    try {
+      if (PlatformHelper.shouldUseMediaKit && _mediaKitPlayer != null) {
+        await _mediaKitPlayer!.setVolume(clamped * 100);
+      } else if (_videoController != null) {
+        await _videoController!.setVolume(clamped);
+      }
+    } catch (e) {
+      debugLog('VideoCard', 'Error updating volume: $e');
+    }
+  }
+
+  Widget _buildVideoPlayerPage(Video video) {
     return StatefulBuilder(
       builder: (context, setDialogState) {
         _videoDialogStateSetter = setDialogState;
-        return Dialog(
-          insetPadding: ResponsiveValues.modalInsetPaddingSmall(context),
-          backgroundColor: Colors.transparent,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(
-              ResponsiveValues.radiusXLarge(context),
-            ),
-            child: Stack(
-              children: [
-                AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: PlatformHelper.isLinux &&
-                          _mediaKitVideoController != null
-                      ? media_kit_video.Video(
-                          controller: _mediaKitVideoController!)
-                      : (_chewieController != null
-                          ? Chewie(controller: _chewieController!)
-                          : const Center(child: CircularProgressIndicator())),
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) async {
+            if (didPop) return;
+            await _closeVideoPlayer(context, video);
+          },
+          child: Scaffold(
+            backgroundColor: Colors.black,
+            body: SafeArea(
+              top: false,
+              bottom: false,
+              child: Stack(
+                children: [
+                Positioned.fill(
+                  child: ColoredBox(
+                    color: Colors.black,
+                    child: Center(
+                      child: PlatformHelper.isLinux &&
+                              _mediaKitVideoController != null
+                          ? media_kit_video.Video(
+                              controller: _mediaKitVideoController!,
+                              fit: BoxFit.contain,
+                            )
+                          : (_chewieController != null
+                              ? Chewie(controller: _chewieController!)
+                              : const CircularProgressIndicator()),
+                    ),
+                  ),
                 ),
                 if (!_isPlayerInitialized)
                   const Positioned.fill(
@@ -1101,84 +1148,131 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
                         color: Colors.black54, shape: BoxShape.circle),
                     child: IconButton(
                       icon: const Icon(Icons.close, color: Colors.white),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        if (isMounted) _onVideoClosed(video);
-                      },
+                      onPressed: () => _closeVideoPlayer(context, video),
                     ),
                   ),
                 ),
                 Positioned(
-                  top: ResponsiveValues.spacingS(context),
-                  left: ResponsiveValues.spacingS(context),
-                  child: Row(
+                  top: ResponsiveValues.spacingM(context),
+                  left: ResponsiveValues.spacingM(context),
+                  child: Container(
+                    padding: ResponsiveValues.mediaOverlayChipPadding(context),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                          colors: [Color(0xFF0088CC), Color(0xFF0055AA)]),
+                      borderRadius: BorderRadius.circular(
+                        ResponsiveValues.radiusFull(context),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      _currentPlaybackQualityLabel ??
+                          video.getRecommendedQuality().label,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize:
+                            ResponsiveValues.mediaOverlayChipTextSize(context) +
+                                1,
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: ResponsiveValues.spacingM(context),
+                  bottom: ResponsiveValues.spacingXXL(context),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Container(
-                        padding:
-                            ResponsiveValues.mediaOverlayChipPadding(context),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                              colors: [Color(0xFF0088CC), Color(0xFF0055AA)]),
+                          color: Colors.black54,
                           borderRadius: BorderRadius.circular(
-                            ResponsiveValues.radiusFull(context),
+                            ResponsiveValues.radiusLarge(context),
                           ),
                         ),
-                        child: Text(
-                          _currentPlaybackQualityLabel ??
-                              video.getRecommendedQuality().label,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: ResponsiveValues.mediaOverlayChipTextSize(
-                                context),
-                          ),
+                        child: Column(
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                _currentVolume <= 0
+                                    ? Icons.volume_off_rounded
+                                    : Icons.volume_up_rounded,
+                                color: Colors.white,
+                              ),
+                              onPressed: () {
+                                _refreshVideoUi(() {
+                                  _showVolumeSlider = !_showVolumeSlider;
+                                });
+                              },
+                            ),
+                            if (_showVolumeSlider)
+                              SizedBox(
+                                height: 140,
+                                child: RotatedBox(
+                                  quarterTurns: 3,
+                                  child: Slider(
+                                    value: _currentVolume,
+                                    onChanged: _updatePlaybackVolume,
+                                    min: 0.0,
+                                    max: 1.0,
+                                    activeColor: AppColors.telegramBlue,
+                                    inactiveColor: Colors.white24,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                      SizedBox(width: ResponsiveValues.spacingS(context)),
+                      SizedBox(height: ResponsiveValues.spacingM(context)),
                       Container(
-                        padding:
-                            ResponsiveValues.mediaOverlayChipPadding(context),
+                        padding: EdgeInsets.all(
+                          ResponsiveValues.spacingXS(context),
+                        ),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                              colors: [Color(0xFFFF6B35), Color(0xFFF7931E)]),
+                          color: Colors.black54,
                           borderRadius: BorderRadius.circular(
-                            ResponsiveValues.radiusFull(context),
+                            ResponsiveValues.radiusLarge(context),
                           ),
                         ),
-                        child: Text(
-                          _formatPlaybackSpeed(_currentPlaybackSpeed),
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: ResponsiveValues.mediaOverlayChipTextSize(
-                                context),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: ResponsiveValues.spacingS(context)),
-                      Container(
-                        decoration: const BoxDecoration(
-                            color: Colors.black54, shape: BoxShape.circle),
-                        child: IconButton(
-                          icon: const Icon(Icons.settings,
-                              color: Colors.white, size: 20),
-                          onPressed: () => _showStreamingQualitySelector(video),
-                        ),
-                      ),
-                      SizedBox(width: ResponsiveValues.spacingS(context)),
-                      Container(
-                        decoration: const BoxDecoration(
-                            color: Colors.black54, shape: BoxShape.circle),
-                        child: IconButton(
-                          icon: const Icon(Icons.speed,
-                              color: Colors.white, size: 20),
-                          onPressed: () => _showSpeedSelector(video),
+                        child: Column(
+                          children: [
+                            IconButton(
+                              tooltip: 'Portrait',
+                              icon: const Icon(Icons.stay_current_portrait_rounded,
+                                  color: Colors.white),
+                              onPressed: () => _setPlaybackOrientation(
+                                DeviceOrientation.portraitUp,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Landscape',
+                              icon: const Icon(Icons.stay_current_landscape_rounded,
+                                  color: Colors.white),
+                              onPressed: () => _setPlaybackOrientation(
+                                DeviceOrientation.landscapeLeft,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Auto rotate',
+                              icon: const Icon(Icons.screen_rotation_rounded,
+                                  color: Colors.white),
+                              onPressed: _prepareVideoPlaybackSession,
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -1186,10 +1280,23 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
     );
   }
 
+  Future<void> _closeVideoPlayer(BuildContext context, Video video) async {
+    Navigator.of(context).pop();
+    if (isMounted) {
+      await _onVideoClosed(video);
+    }
+  }
+
   Future<void> _onVideoClosed(Video video) async {
     _refreshVideoUi(() => _isVideoDialogOpen = false);
 
     int progress = 0;
+    final playbackStartedAt = _videoPlaybackStartedAt;
+    final watchedDuration = playbackStartedAt == null
+        ? Duration.zero
+        : DateTime.now().difference(playbackStartedAt);
+    final watchedMinutes =
+        watchedDuration.inSeconds <= 0 ? 0.0 : watchedDuration.inSeconds / 60.0;
     try {
       if (PlatformHelper.shouldUseMediaKit && _mediaKitPlayer != null) {
         try {
@@ -1226,9 +1333,14 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
       }
 
       await WakelockPlus.disable();
-      if (PlatformHelper.isMobile) {
-        ScreenProtectionService.enable();
-      }
+      await SystemChrome.setEnabledSystemUIMode(
+        SystemUiMode.edgeToEdge,
+        overlays: [SystemUiOverlay.top],
+      );
+      await SystemChrome.setPreferredOrientations(const [
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
     } catch (e) {
       debugLog('VideoCard', 'Error disposing player: $e');
     }
@@ -1237,6 +1349,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
       await _progressProvider.saveChapterProgress(
         chapterId: widget.chapterId,
         videoProgress: progress,
+        studyTimeMinutes: watchedMinutes,
       );
     } finally {
       _disposeAllPlayers();
@@ -1649,43 +1762,47 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
     });
 
     try {
-      if (note.filePath == null || note.filePath!.isEmpty) {
-        SnackbarService().showError(context, AppStrings.noteNoDownloadableFile);
-        setState(() {
-          _isDownloading[note.id] = false;
-          _downloadProgress.remove(note.id);
-        });
-        return;
-      }
-
       final appDocDir = await getApplicationDocumentsDirectory();
       final cacheDir =
           Directory('${appDocDir.path}/.familyacademy_cache/notes');
       if (!await cacheDir.exists()) await cacheDir.create(recursive: true);
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      late final String filePath;
 
-      final fullFilePath = note.fullNoteFilePath;
-      if (fullFilePath == null || fullFilePath.isEmpty) {
-        throw Exception(AppStrings.invalidFilePath);
+      if (note.hasFile) {
+        final fullFilePath = note.fullNoteFilePath;
+        if (fullFilePath == null || fullFilePath.isEmpty) {
+          throw Exception(AppStrings.invalidFilePath);
+        }
+
+        final extension = path.extension(note.filePath!);
+        final fileName = 'note_${note.id}_${timestamp}$extension';
+        filePath = '${cacheDir.path}/$fileName';
+
+        await _dio.download(
+          fullFilePath,
+          filePath,
+          options: Options(
+            receiveTimeout: const Duration(minutes: 5),
+            sendTimeout: const Duration(minutes: 5),
+          ),
+          onReceiveProgress: (received, total) {
+            if (total != -1 && isMounted) {
+              setState(() => _downloadProgress[note.id] = received / total);
+            }
+          },
+        );
+      } else {
+        final fileName = 'note_${note.id}_${timestamp}.html';
+        filePath = '${cacheDir.path}/$fileName';
+        final noteHtml = note.content.trim().isEmpty
+            ? '<html><body><h1>${note.title}</h1><p>No note content was available.</p></body></html>'
+            : note.content;
+        await File(filePath).writeAsString(noteHtml, flush: true);
+        if (isMounted) {
+          setState(() => _downloadProgress[note.id] = 1.0);
+        }
       }
-
-      final extension = path.extension(note.filePath!);
-      final fileName =
-          'note_${note.id}_${DateTime.now().millisecondsSinceEpoch}$extension';
-      final filePath = '${cacheDir.path}/$fileName';
-
-      await _dio.download(
-        fullFilePath,
-        filePath,
-        options: Options(
-          receiveTimeout: const Duration(minutes: 5),
-          sendTimeout: const Duration(minutes: 5),
-        ),
-        onReceiveProgress: (received, total) {
-          if (total != -1 && isMounted) {
-            setState(() => _downloadProgress[note.id] = received / total);
-          }
-        },
-      );
 
       setState(() {
         _cachedNotePaths[note.id] = filePath;
@@ -1696,7 +1813,10 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
       await _saveCacheMetadata();
 
       if (isMounted) {
-        SnackbarService().showSuccess(context, AppStrings.noteDownloaded);
+        SnackbarService().showSuccess(
+          context,
+          '${note.title} downloaded.',
+        );
       }
     } catch (e) {
       if (isMounted) {
@@ -1813,10 +1933,15 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
     AppDialog.hideLoading(context);
     await _saveQuestionProgress();
     final answeredCount = _questionAnswered.values.where((v) => v).length;
+    final attemptedThisRound = questions
+        .where((question) =>
+            (_selectedAnswers[question.id] ?? '').trim().isNotEmpty)
+        .length;
     await _progressProvider.saveChapterProgress(
       chapterId: widget.chapterId,
       questionsAttempted: answeredCount,
       questionsCorrect: correctCount,
+      studyTimeMinutes: attemptedThisRound * 0.15,
     );
 
     if (isMounted) {
@@ -1879,6 +2004,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
         chapterId: widget.chapterId,
         questionsAttempted: answeredCount,
         questionsCorrect: correctCount,
+        studyTimeMinutes: 0.25,
       );
     } catch (e) {
       if (isMounted) {
@@ -2164,6 +2290,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
               _progressProvider.saveChapterProgress(
                 chapterId: note.chapterId,
                 notesViewed: true,
+                studyTimeMinutes: 0.5,
               );
               _noteProvider.markNoteAsViewed(note.id);
               Navigator.push(
@@ -2229,7 +2356,9 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.only(bottom: ResponsiveValues.spacingL(context)),
-      itemCount: questions.length + 2 + (answeredCount == totalCount && totalCount > 0 ? 1 : 0),
+      itemCount: questions.length +
+          2 +
+          (answeredCount == totalCount && totalCount > 0 ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == 0) {
           return Container(
@@ -2356,7 +2485,8 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
           );
         }
 
-        final explanationToggleIndex = answeredCount == totalCount && totalCount > 0 ? 2 : -1;
+        final explanationToggleIndex =
+            answeredCount == totalCount && totalCount > 0 ? 2 : -1;
         if (index == explanationToggleIndex) {
           return Padding(
             padding: ResponsiveValues.screenPadding(context),
@@ -2372,7 +2502,8 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
           );
         }
 
-        final questionIndex = index - 2 - (explanationToggleIndex == -1 ? 0 : 1);
+        final questionIndex =
+            index - 2 - (explanationToggleIndex == -1 ? 0 : 1);
         final question = questions[questionIndex];
 
         return Padding(
@@ -2384,6 +2515,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
             showExplanation: _showExplanation,
             isQuestionCorrect: _isQuestionCorrect,
             questionAnswered: _questionAnswered,
+            showAllExplanations: _showAllExplanations,
             onSelectAnswer: _selectAnswer,
             onCheckAnswer: _checkAnswer,
           ),
@@ -2588,22 +2720,42 @@ class NoteDetailScreen extends StatelessWidget {
 
   Widget _buildPdfViewer(String filePath) => SfPdfViewer.file(File(filePath));
 
+  Future<String?> _readCachedTextContent() async {
+    if (cachedPath == null) return null;
+    final lowerPath = cachedPath!.toLowerCase();
+    if (lowerPath.endsWith('.pdf')) return null;
+
+    final file = File(cachedPath!);
+    if (!await file.exists()) return null;
+
+    try {
+      return await file.readAsString();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // FIX 8: Increased padding and max-width for more breathing room
   Widget _buildTextContent(BuildContext context, String content) {
     final isDesktop = ScreenSize.isDesktop(context);
     final isTablet = ScreenSize.isTablet(context);
-    final paperWidth = isDesktop
-        ? 760.0
-        : (isTablet ? 680.0 : double.infinity);
+    // Increased max widths: desktop 760→860, tablet 680→760
+    final paperWidth = isDesktop ? 860.0 : (isTablet ? 760.0 : double.infinity);
 
     return SingleChildScrollView(
-      padding: ResponsiveValues.screenPadding(context),
+      // FIX 8: Increased screen padding for more breathing room
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? 24 : (isTablet ? 20 : 16),
+        vertical: isDesktop ? 28 : (isTablet ? 24 : 20),
+      ),
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: paperWidth),
           child: Container(
+            // FIX 8: Increased internal padding for more breathing room
             padding: EdgeInsets.symmetric(
-              horizontal: isDesktop ? 40 : (isTablet ? 32 : 20),
-              vertical: isDesktop ? 36 : 24,
+              horizontal: isDesktop ? 56 : (isTablet ? 44 : 28),
+              vertical: isDesktop ? 48 : (isTablet ? 40 : 32),
             ),
             decoration: BoxDecoration(
               color: AppColors.getSurface(context),
@@ -2621,17 +2773,20 @@ class NoteDetailScreen extends StatelessWidget {
                 ),
               ],
             ),
-            child: HtmlWidget(
-              content,
-              textStyle: AppTextStyles.bodyLarge(context).copyWith(height: 1.75),
-              onTapUrl: (url) async {
-                final uri = Uri.parse(url);
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  return true;
-                }
-                return false;
-              },
+            child: SelectionContainer.disabled(
+              child: HtmlWidget(
+                content,
+                textStyle:
+                    AppTextStyles.bodyLarge(context).copyWith(height: 1.75),
+                onTapUrl: (url) async {
+                  final uri = Uri.parse(url);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    return true;
+                  }
+                  return false;
+                },
+              ),
             ),
           ),
         ),
@@ -2666,7 +2821,17 @@ class NoteDetailScreen extends StatelessWidget {
           if (hasFile && cachedPath != null && isPdf)
             Expanded(child: _buildPdfViewer(cachedPath!))
           else
-            Expanded(child: _buildTextContent(context, note.content)),
+            Expanded(
+              child: FutureBuilder<String?>(
+                future: _readCachedTextContent(),
+                builder: (context, snapshot) {
+                  final content = snapshot.data?.trim().isNotEmpty == true
+                      ? snapshot.data!
+                      : note.content;
+                  return _buildTextContent(context, content);
+                },
+              ),
+            ),
         ],
       ),
     );

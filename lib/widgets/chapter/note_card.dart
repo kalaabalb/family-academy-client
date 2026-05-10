@@ -119,8 +119,7 @@ class NoteCard extends StatelessWidget {
                             Container(
                               padding: EdgeInsets.symmetric(
                                 horizontal: ResponsiveValues.spacingS(context),
-                                vertical:
-                                    ResponsiveValues.spacingXXS(context),
+                                vertical: ResponsiveValues.spacingXXS(context),
                               ),
                               decoration: BoxDecoration(
                                 color: (isPdf
@@ -133,10 +132,55 @@ class NoteCard extends StatelessWidget {
                               ),
                               child: Text(
                                 isPdf ? 'PDF' : 'Document',
-                                style: AppTextStyles.labelSmall(context).copyWith(
+                                style:
+                                    AppTextStyles.labelSmall(context).copyWith(
                                   color: isPdf
                                       ? AppColors.telegramRed
                                       : AppColors.telegramBlue,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          if (isDownloaded)
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: ResponsiveValues.spacingS(context),
+                                vertical: ResponsiveValues.spacingXXS(context),
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.telegramGreen
+                                    .withValues(alpha: 0.10),
+                                borderRadius: BorderRadius.circular(
+                                  ResponsiveValues.radiusFull(context),
+                                ),
+                              ),
+                              child: Text(
+                                'Saved offline',
+                                style:
+                                    AppTextStyles.labelSmall(context).copyWith(
+                                  color: AppColors.telegramGreen,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            )
+                          else
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: ResponsiveValues.spacingS(context),
+                                vertical: ResponsiveValues.spacingXXS(context),
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.telegramBlue
+                                    .withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(
+                                  ResponsiveValues.radiusFull(context),
+                                ),
+                              ),
+                              child: Text(
+                                'Download for offline',
+                                style:
+                                    AppTextStyles.labelSmall(context).copyWith(
+                                  color: AppColors.telegramBlue,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -180,15 +224,10 @@ class NoteCard extends StatelessWidget {
                     icon: Icons.visibility_rounded,
                     onPressed: onTap,
                   )
-                else if (hasFile)
+                else
                   AppButton.icon(
                     icon: Icons.download_rounded,
                     onPressed: onDownload,
-                  )
-                else
-                  AppButton.icon(
-                    icon: Icons.visibility_rounded,
-                    onPressed: onTap,
                   ),
               ],
             ),

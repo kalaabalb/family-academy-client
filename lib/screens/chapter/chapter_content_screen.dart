@@ -3,6 +3,7 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:html/dom.dart' as html_dom;
@@ -1159,31 +1160,73 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
                     Positioned(
                       top: ResponsiveValues.spacingM(context),
                       left: ResponsiveValues.spacingM(context),
-                      child: Container(
-                        padding:
-                            ResponsiveValues.mediaOverlayChipPadding(context),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                              colors: [Color(0xFF0088CC), Color(0xFF0055AA)]),
-                          borderRadius: BorderRadius.circular(
-                            ResponsiveValues.radiusFull(context),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
+                      child: GestureDetector(
+                        onTap: (!_cachedVideoPaths.containsKey(video.id) &&
+                                video.hasQualities)
+                            ? () => _showStreamingQualitySelector(video)
+                            : null,
+                        child: Container(
+                          padding:
+                              ResponsiveValues.mediaOverlayChipPadding(context),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                                colors: [Color(0xFF0088CC), Color(0xFF0055AA)]),
+                            borderRadius: BorderRadius.circular(
+                              ResponsiveValues.radiusFull(context),
                             ),
-                          ],
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _currentPlaybackQualityLabel!,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize:
+                                      ResponsiveValues.mediaOverlayChipTextSize(
+                                              context) +
+                                          1,
+                                ),
+                              ),
+                              if (!_cachedVideoPaths.containsKey(video.id) &&
+                                  video.hasQualities) ...[
+                                const SizedBox(width: 6),
+                                const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
-                        child: Text(
-                          _currentPlaybackQualityLabel!,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: ResponsiveValues.mediaOverlayChipTextSize(
-                                    context) +
-                                1,
+                      ),
+                    ),
+                  if (!_cachedVideoPaths.containsKey(video.id) &&
+                      video.hasQualities)
+                    Positioned(
+                      left: ResponsiveValues.spacingM(context),
+                      bottom: ResponsiveValues.spacingXXL(context),
+                      child: FilledButton.icon(
+                        onPressed: () => _showStreamingQualitySelector(video),
+                        icon: const Icon(Icons.hd_rounded, size: 18),
+                        label: Text(
+                          _currentPlaybackQualityLabel ?? 'Quality',
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.black87,
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: ResponsiveValues.spacingM(context),
+                            vertical: ResponsiveValues.spacingS(context),
                           ),
                         ),
                       ),
@@ -1234,24 +1277,6 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
                             ],
                           ),
                         ),
-                        if (!_cachedVideoPaths.containsKey(video.id) &&
-                            video.hasQualities) ...[
-                          SizedBox(height: ResponsiveValues.spacingM(context)),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.black54,
-                              borderRadius: BorderRadius.circular(
-                                ResponsiveValues.radiusLarge(context),
-                              ),
-                            ),
-                            child: IconButton(
-                              tooltip: 'Quality',
-                              icon: const Icon(Icons.hd_rounded,
-                                  color: Colors.white),
-                              onPressed: () => _showStreamingQualitySelector(video),
-                            ),
-                          ),
-                        ],
                         SizedBox(height: ResponsiveValues.spacingM(context)),
                         Container(
                           padding: EdgeInsets.all(
@@ -2841,75 +2866,83 @@ class NoteDetailScreen extends StatelessWidget {
   }
 
   Widget _buildNoteHtml(BuildContext context, String content) {
-    final normalizedContent = _normalizeNoteHtml(content);
-    final parsedDocument = html_parser.parse(normalizedContent);
-    final nodes = parsedDocument.body?.nodes ?? const <html_dom.Node>[];
+    try {
+      final normalizedContent = _normalizeNoteHtml(content);
+      final parsedDocument = html_parser.parse(normalizedContent);
+      final nodes = parsedDocument.body?.nodes ?? const <html_dom.Node>[];
 
-    final hasStructuredTable = normalizedContent.contains('<table') ||
-        normalizedContent.contains('tableWrapper') ||
-        normalizedContent.contains('class="table"');
+      final hasStructuredTable = normalizedContent.contains('<table') ||
+          normalizedContent.contains('tableWrapper') ||
+          normalizedContent.contains('class="table"');
 
-    if (hasStructuredTable) {
-      final structuredWidgets =
-          _buildStructuredNoteWidgets(context, nodes).whereType<Widget>().toList();
-      if (structuredWidgets.isNotEmpty) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: structuredWidgets,
-        );
+      if (hasStructuredTable) {
+        final structuredWidgets = _buildStructuredNoteWidgets(context, nodes)
+            .whereType<Widget>()
+            .toList();
+        if (structuredWidgets.isNotEmpty) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: structuredWidgets,
+          );
+        }
       }
-    }
 
-    return HtmlWidget(
-      normalizedContent,
-      textStyle: AppTextStyles.bodyLarge(context).copyWith(height: 1.75),
-      customStylesBuilder: (element) {
-        switch (element.localName) {
-          case 'table':
-            return {
-              'display': 'block',
-              'width': '100%',
-              'margin': '16px 0',
-            };
-          case 'tr':
-            return {'display': 'table-row'};
-          case 'td':
-          case 'th':
-            return {'display': 'table-cell'};
-          default:
-            return null;
-        }
-      },
-      customWidgetBuilder: (element) {
-        if (element.localName == 'table') {
-          return _buildHtmlTable(context, element);
-        }
-        if (_isTableWrapper(element)) {
-          final wrappedTable = element.querySelector('table');
-          if (wrappedTable != null) {
-            return _buildHtmlTable(context, wrappedTable);
+      return HtmlWidget(
+        normalizedContent,
+        textStyle: AppTextStyles.bodyLarge(context).copyWith(height: 1.75),
+        customStylesBuilder: (element) {
+          switch (element.localName) {
+            case 'table':
+              return {
+                'display': 'block',
+                'width': '100%',
+                'margin': '16px 0',
+              };
+            case 'tr':
+              return {'display': 'table-row'};
+            case 'td':
+            case 'th':
+              return {'display': 'table-cell'};
+            default:
+              return null;
           }
-        }
-        if (element.localName == 'img') {
-          final src = element.attributes['src']?.trim() ?? '';
-          if (src.isEmpty ||
-              src == 'null' ||
-              src.startsWith('blob:') ||
-              src.startsWith('data:')) {
-            return const SizedBox.shrink();
+        },
+        customWidgetBuilder: (element) {
+          if (element.localName == 'table') {
+            return _buildHtmlTable(context, element);
           }
-        }
-        return null;
-      },
-      onTapUrl: (url) async {
-        final uri = Uri.parse(url);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-          return true;
-        }
-        return false;
-      },
-    );
+          if (_isTableWrapper(element)) {
+            final wrappedTable = element.querySelector('table');
+            if (wrappedTable != null) {
+              return _buildHtmlTable(context, wrappedTable);
+            }
+          }
+          if (element.localName == 'img') {
+            final src = element.attributes['src']?.trim() ?? '';
+            if (src.isEmpty ||
+                src == 'null' ||
+                src.startsWith('blob:') ||
+                src.startsWith('data:')) {
+              return const SizedBox.shrink();
+            }
+          }
+          return null;
+        },
+        onTapUrl: (url) async {
+          final uri = Uri.parse(url);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+            return true;
+          }
+          return false;
+        },
+      );
+    } catch (_) {
+      return HtmlWidget(
+        content,
+        textStyle: AppTextStyles.bodyLarge(context).copyWith(height: 1.75),
+      );
+    }
   }
 
   Widget _buildHtmlTable(BuildContext context, dynamic tableElement) {
@@ -2941,6 +2974,11 @@ class NoteDetailScreen extends StatelessWidget {
     final cellTextStyle =
         AppTextStyles.bodyMedium(context).copyWith(height: 1.55);
 
+    final minTableWidth = math.max<double>(
+      MediaQuery.of(context).size.width - 32.0,
+      maxColumns * 180.0,
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: ClipRRect(
@@ -2956,7 +2994,7 @@ class NoteDetailScreen extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                minWidth: MediaQuery.of(context).size.width - 32,
+                minWidth: minTableWidth,
               ),
               child: Table(
                 defaultVerticalAlignment: TableCellVerticalAlignment.top,
@@ -2982,7 +3020,7 @@ class NoteDetailScreen extends StatelessWidget {
 
                       final isHeader = cell.localName == 'th';
                       return Container(
-                        constraints: const BoxConstraints(minWidth: 120),
+                        constraints: const BoxConstraints(minWidth: 180),
                         color: isHeader ? headerColor : surfaceColor,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 14,

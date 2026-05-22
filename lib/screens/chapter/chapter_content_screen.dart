@@ -2783,6 +2783,25 @@ class NoteDetailScreen extends StatelessWidget {
   final Note note;
   final String? cachedPath;
 
+  static const Map<String, String> _bulletSymbols = {
+    'diamond': '❖',
+    'hand': '☞',
+    'dash': '—',
+    'hollow-circle': '○',
+    'square': '■',
+    'filled-circle': '●',
+    'double-arrow': '⇒',
+    'check': '✓',
+  };
+
+  static const Map<String, String> _orderedListStyles = {
+    '1': 'decimal',
+    'a': 'lower-alpha',
+    'A': 'upper-alpha',
+    'i': 'lower-roman',
+    'I': 'upper-roman',
+  };
+
   const NoteDetailScreen({super.key, required this.note, this.cachedPath});
 
   Future<void> _openFile(BuildContext context, String filePath) async {
@@ -2903,6 +2922,15 @@ class NoteDetailScreen extends StatelessWidget {
             case 'td':
             case 'th':
               return {'display': 'table-cell'};
+            case 'span':
+              if (element.attributes['data-bullet-marker'] != null) {
+                return {
+                  'display': 'inline-block',
+                  'min-width': '1.6em',
+                  'font-weight': '700',
+                };
+              }
+              return null;
             default:
               return null;
           }
@@ -3027,9 +3055,11 @@ class NoteDetailScreen extends StatelessWidget {
                           vertical: 12,
                         ),
                         child: HtmlWidget(
-                          cell.innerHtml.trim().isEmpty
-                              ? '&nbsp;'
-                              : cell.innerHtml,
+                          _normalizeNoteHtml(
+                            cell.innerHtml.trim().isEmpty
+                                ? '&nbsp;'
+                                : cell.innerHtml,
+                          ),
                           textStyle: cellTextStyle.copyWith(
                             fontWeight:
                                 isHeader ? FontWeight.w700 : FontWeight.w500,
@@ -3037,6 +3067,15 @@ class NoteDetailScreen extends StatelessWidget {
                           customStylesBuilder: (innerElement) {
                             if (innerElement.localName == 'p') {
                               return {'margin': '0'};
+                            }
+                            if (innerElement.localName == 'span' &&
+                                innerElement.attributes['data-bullet-marker'] !=
+                                    null) {
+                              return {
+                                'display': 'inline-block',
+                                'min-width': '1.6em',
+                                'font-weight': '700',
+                              };
                             }
                             return null;
                           },
@@ -3067,17 +3106,54 @@ class NoteDetailScreen extends StatelessWidget {
   String _normalizeNoteHtml(String content) {
     if (content.trim().isEmpty) return content;
 
-    return content
-        .replaceAll(RegExp('<img[^>]*src=["\\\']?(?:null)?["\\\']?[^>]*>',
-            caseSensitive: false), '')
-        .replaceAll(RegExp('<img[^>]*src=["\\\']blob:[^"\\\']*["\\\'][^>]*>',
-            caseSensitive: false), '')
-        .replaceAll(RegExp('<img[^>]*src=["\\\']data:[^"\\\']*["\\\'][^>]*>',
-            caseSensitive: false), '')
-        .replaceAll('<tbody>', '')
-        .replaceAll('</tbody>', '')
-        .replaceAll('<thead>', '')
-        .replaceAll('</thead>', '');
+    final document = html_parser.parse(content);
+
+    for (final image in document.querySelectorAll('img')) {
+      final src = image.attributes['src']?.trim() ?? '';
+      if (src.isEmpty ||
+          src == 'null' ||
+          src.startsWith('blob:') ||
+          src.startsWith('data:')) {
+        image.remove();
+      }
+    }
+
+    for (final list in document.querySelectorAll('ul[data-list-type]')) {
+      final listType = list.attributes['data-list-type'] ?? 'filled-circle';
+      final symbol = _bulletSymbols[listType] ?? '●';
+      list.attributes['style'] =
+          'list-style:none;padding-left:0;margin:0 0 1rem 0;';
+
+      for (final item
+          in list.children.where((element) => element.localName == 'li')) {
+        final marker = item.attributes['data-bullet-marker'];
+        if (marker == symbol) continue;
+
+        final prefix = html_dom.Element.tag('span')
+          ..attributes['data-bullet-marker'] = symbol
+          ..attributes['style'] =
+              'display:inline-block;min-width:1.6em;font-weight:700;';
+        prefix.nodes.add(html_dom.Text('$symbol '));
+        item.nodes.insert(0, prefix);
+      }
+    }
+
+    for (final list in document.querySelectorAll('ol')) {
+      final listType = list.attributes['data-list-type'] ?? '1';
+      final styleType = _orderedListStyles[listType] ?? 'decimal';
+      list.attributes['style'] =
+          'list-style-type:$styleType;padding-left:1.8em;margin:0 0 1rem 0;';
+      if (listType != '1') {
+        list.attributes['type'] = listType;
+      }
+    }
+
+    return document.body?.innerHtml
+            .replaceAll('<tbody>', '')
+            .replaceAll('</tbody>', '')
+            .replaceAll('<thead>', '')
+            .replaceAll('</thead>', '') ??
+        content;
   }
 
   bool _isTableWrapper(dynamic element) {
@@ -3153,6 +3229,14 @@ class NoteDetailScreen extends StatelessWidget {
             customStylesBuilder: (element) {
               if (element.localName == 'p') {
                 return {'margin': '0'};
+              }
+              if (element.localName == 'span' &&
+                  element.attributes['data-bullet-marker'] != null) {
+                return {
+                  'display': 'inline-block',
+                  'min-width': '1.6em',
+                  'font-weight': '700',
+                };
               }
               if (element.localName == 'img') {
                 final src = element.attributes['src']?.trim() ?? '';

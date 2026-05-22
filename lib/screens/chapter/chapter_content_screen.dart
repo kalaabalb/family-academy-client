@@ -5,6 +5,8 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:html/dom.dart' as html_dom;
+import 'package:html/parser.dart' as html_parser;
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:path_provider/path_provider.dart';
@@ -870,7 +872,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
         _isPlayingVideo = true;
         _isVideoDialogOpen = true;
         _isPlayerInitialized = false;
-        _currentPlaybackQualityLabel = AppStrings.offlineQuality;
+        _currentPlaybackQualityLabel = null;
         _videoPlaybackStartedAt = DateTime.now();
       });
 
@@ -1116,7 +1118,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
                     child: ColoredBox(
                       color: Colors.black,
                       child: Center(
-                        child: PlatformHelper.isLinux &&
+                        child: PlatformHelper.shouldUseMediaKit &&
                                 _mediaKitVideoController != null
                             ? media_kit_video.Video(
                                 controller: _mediaKitVideoController!,
@@ -1152,39 +1154,40 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
                       ),
                     ),
                   ),
-                  Positioned(
-                    top: ResponsiveValues.spacingM(context),
-                    left: ResponsiveValues.spacingM(context),
-                    child: Container(
-                      padding:
-                          ResponsiveValues.mediaOverlayChipPadding(context),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                            colors: [Color(0xFF0088CC), Color(0xFF0055AA)]),
-                        borderRadius: BorderRadius.circular(
-                          ResponsiveValues.radiusFull(context),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                  if ((_currentPlaybackQualityLabel?.isNotEmpty ?? false) &&
+                      _currentPlaybackQualityLabel != AppStrings.offlineQuality)
+                    Positioned(
+                      top: ResponsiveValues.spacingM(context),
+                      left: ResponsiveValues.spacingM(context),
+                      child: Container(
+                        padding:
+                            ResponsiveValues.mediaOverlayChipPadding(context),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                              colors: [Color(0xFF0088CC), Color(0xFF0055AA)]),
+                          borderRadius: BorderRadius.circular(
+                            ResponsiveValues.radiusFull(context),
                           ),
-                        ],
-                      ),
-                      child: Text(
-                        _currentPlaybackQualityLabel ??
-                            video.getRecommendedQuality().label,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: ResponsiveValues.mediaOverlayChipTextSize(
-                                  context) +
-                              1,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          _currentPlaybackQualityLabel!,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: ResponsiveValues.mediaOverlayChipTextSize(
+                                    context) +
+                                1,
+                          ),
                         ),
                       ),
                     ),
-                  ),
                   Positioned(
                     right: ResponsiveValues.spacingM(context),
                     bottom: ResponsiveValues.spacingXXL(context),
@@ -1231,6 +1234,24 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
                             ],
                           ),
                         ),
+                        if (!_cachedVideoPaths.containsKey(video.id) &&
+                            video.hasQualities) ...[
+                          SizedBox(height: ResponsiveValues.spacingM(context)),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(
+                                ResponsiveValues.radiusLarge(context),
+                              ),
+                            ),
+                            child: IconButton(
+                              tooltip: 'Quality',
+                              icon: const Icon(Icons.hd_rounded,
+                                  color: Colors.white),
+                              onPressed: () => _showStreamingQualitySelector(video),
+                            ),
+                          ),
+                        ],
                         SizedBox(height: ResponsiveValues.spacingM(context)),
                         Container(
                           padding: EdgeInsets.all(
@@ -1629,7 +1650,16 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
       } catch (e) {}
     }
 
-    final quality = _downloadQuality[video.id] ??
+    VideoQuality? quality = _downloadQuality[video.id];
+    if (quality == null && video.hasQualities) {
+      quality = await _showQualitySelector(video, forPlayback: false);
+      if (quality == null) return;
+      if (isMounted) {
+        setState(() => _downloadQuality[video.id] = quality!);
+      }
+    }
+
+    quality ??=
         VideoQuality(label: '480p', url: video.fullVideoUrl, height: 480);
 
     setState(() {
@@ -1830,6 +1860,28 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
         SnackbarService()
             .showError(context, '${AppStrings.downloadFailed}: $e');
       }
+    }
+  }
+
+  Future<void> _removeDownloadedNote(Note note) async {
+    final cachedPath = _cachedNotePaths[note.id];
+    if (cachedPath == null) return;
+
+    try {
+      final file = File(cachedPath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {}
+
+    if (!isMounted) return;
+
+    setState(() {
+      _cachedNotePaths.remove(note.id);
+    });
+    await _saveCacheMetadata();
+    if (isMounted) {
+      SnackbarService().showSuccess(context, '${note.title} removed.');
     }
   }
 
@@ -2307,6 +2359,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
               );
             },
             onDownload: () => _downloadNote(note),
+            onRemove: () => _removeDownloadedNote(note),
           ),
         );
       },
@@ -2788,8 +2841,27 @@ class NoteDetailScreen extends StatelessWidget {
   }
 
   Widget _buildNoteHtml(BuildContext context, String content) {
+    final normalizedContent = _normalizeNoteHtml(content);
+    final parsedDocument = html_parser.parse(normalizedContent);
+    final nodes = parsedDocument.body?.nodes ?? const <html_dom.Node>[];
+
+    final hasStructuredTable = normalizedContent.contains('<table') ||
+        normalizedContent.contains('tableWrapper') ||
+        normalizedContent.contains('class="table"');
+
+    if (hasStructuredTable) {
+      final structuredWidgets =
+          _buildStructuredNoteWidgets(context, nodes).whereType<Widget>().toList();
+      if (structuredWidgets.isNotEmpty) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: structuredWidgets,
+        );
+      }
+    }
+
     return HtmlWidget(
-      content,
+      normalizedContent,
       textStyle: AppTextStyles.bodyLarge(context).copyWith(height: 1.75),
       customStylesBuilder: (element) {
         switch (element.localName) {
@@ -2811,6 +2883,21 @@ class NoteDetailScreen extends StatelessWidget {
       customWidgetBuilder: (element) {
         if (element.localName == 'table') {
           return _buildHtmlTable(context, element);
+        }
+        if (_isTableWrapper(element)) {
+          final wrappedTable = element.querySelector('table');
+          if (wrappedTable != null) {
+            return _buildHtmlTable(context, wrappedTable);
+          }
+        }
+        if (element.localName == 'img') {
+          final src = element.attributes['src']?.trim() ?? '';
+          if (src.isEmpty ||
+              src == 'null' ||
+              src.startsWith('blob:') ||
+              src.startsWith('data:')) {
+            return const SizedBox.shrink();
+          }
         }
         return null;
       },
@@ -2937,6 +3024,123 @@ class NoteDetailScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _normalizeNoteHtml(String content) {
+    if (content.trim().isEmpty) return content;
+
+    return content
+        .replaceAll(RegExp('<img[^>]*src=["\\\']?(?:null)?["\\\']?[^>]*>',
+            caseSensitive: false), '')
+        .replaceAll(RegExp('<img[^>]*src=["\\\']blob:[^"\\\']*["\\\'][^>]*>',
+            caseSensitive: false), '')
+        .replaceAll(RegExp('<img[^>]*src=["\\\']data:[^"\\\']*["\\\'][^>]*>',
+            caseSensitive: false), '')
+        .replaceAll('<tbody>', '')
+        .replaceAll('</tbody>', '')
+        .replaceAll('<thead>', '')
+        .replaceAll('</thead>', '');
+  }
+
+  bool _isTableWrapper(dynamic element) {
+    if (element == null) return false;
+    final localName = element.localName?.toString() ?? '';
+    if (localName != 'div' && localName != 'figure') return false;
+
+    final className = element.attributes['class']?.toString() ?? '';
+    return className.contains('table') || className.contains('tableWrapper');
+  }
+
+  List<Widget?> _buildStructuredNoteWidgets(
+      BuildContext context, List<html_dom.Node> nodes) {
+    final widgets = <Widget?>[];
+
+    for (final node in nodes) {
+      if (node is html_dom.Text) {
+        final text = node.text.trim();
+        if (text.isEmpty) continue;
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              text,
+              style: AppTextStyles.bodyLarge(context).copyWith(height: 1.75),
+            ),
+          ),
+        );
+        continue;
+      }
+
+      if (node is! html_dom.Element) continue;
+
+      if (node.localName == 'table') {
+        widgets.add(_buildHtmlTable(context, node));
+        continue;
+      }
+
+      if (_isTableWrapper(node)) {
+        final wrappedTable = node.querySelector('table');
+        if (wrappedTable != null) {
+          widgets.add(_buildHtmlTable(context, wrappedTable));
+          continue;
+        }
+      }
+
+      if (node.localName == 'img') {
+        final src = node.attributes['src']?.trim() ?? '';
+        if (src.isEmpty ||
+            src == 'null' ||
+            src.startsWith('blob:') ||
+            src.startsWith('data:')) {
+          continue;
+        }
+      }
+
+      if (node.querySelector('table') != null) {
+        widgets.addAll(
+          _buildStructuredNoteWidgets(context, node.nodes).whereType<Widget>(),
+        );
+        continue;
+      }
+
+      final html = node.outerHtml.trim();
+      if (html.isEmpty) continue;
+
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: HtmlWidget(
+            html,
+            textStyle: AppTextStyles.bodyLarge(context).copyWith(height: 1.75),
+            customStylesBuilder: (element) {
+              if (element.localName == 'p') {
+                return {'margin': '0'};
+              }
+              if (element.localName == 'img') {
+                final src = element.attributes['src']?.trim() ?? '';
+                if (src.isEmpty ||
+                    src == 'null' ||
+                    src.startsWith('blob:') ||
+                    src.startsWith('data:')) {
+                  return {'display': 'none'};
+                }
+              }
+              return null;
+            },
+            onTapUrl: (url) async {
+              final uri = Uri.parse(url);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+                return true;
+              }
+              return false;
+            },
+          ),
+        ),
+      );
+    }
+
+    return widgets;
   }
 
   @override

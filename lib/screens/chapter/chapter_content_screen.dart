@@ -2890,20 +2890,14 @@ class NoteDetailScreen extends StatelessWidget {
       final parsedDocument = html_parser.parse(normalizedContent);
       final nodes = parsedDocument.body?.nodes ?? const <html_dom.Node>[];
 
-      final hasStructuredTable = normalizedContent.contains('<table') ||
-          normalizedContent.contains('tableWrapper') ||
-          normalizedContent.contains('class="table"');
-
-      if (hasStructuredTable) {
-        final structuredWidgets = _buildStructuredNoteWidgets(context, nodes)
-            .whereType<Widget>()
-            .toList();
-        if (structuredWidgets.isNotEmpty) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: structuredWidgets,
-          );
-        }
+      final structuredWidgets = _buildStructuredNoteWidgets(context, nodes)
+          .whereType<Widget>()
+          .toList();
+      if (structuredWidgets.isNotEmpty) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: structuredWidgets,
+        );
       }
 
       return HtmlWidget(

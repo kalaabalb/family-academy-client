@@ -828,7 +828,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
 
       VideoQuality? selectedQuality;
 
-      if (video.hasQualities) {
+      if (video.availableQualities.length > 1) {
         if (isMounted) Navigator.pop(context);
         selectedQuality = await _showQualitySelector(video, forPlayback: true);
         if (selectedQuality == null) return;
@@ -1162,7 +1162,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
                       left: ResponsiveValues.spacingM(context),
                       child: GestureDetector(
                         onTap: (!_cachedVideoPaths.containsKey(video.id) &&
-                                video.hasQualities)
+                                video.availableQualities.length > 1)
                             ? () => _showStreamingQualitySelector(video)
                             : null,
                         child: Container(
@@ -1197,7 +1197,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
                                 ),
                               ),
                               if (!_cachedVideoPaths.containsKey(video.id) &&
-                                  video.hasQualities) ...[
+                                  video.availableQualities.length > 1) ...[
                                 const SizedBox(width: 6),
                                 const Icon(
                                   Icons.keyboard_arrow_down_rounded,
@@ -1211,7 +1211,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
                       ),
                     ),
                   if (!_cachedVideoPaths.containsKey(video.id) &&
-                      video.hasQualities)
+                      video.availableQualities.length > 1)
                     Positioned(
                       left: ResponsiveValues.spacingM(context),
                       bottom: ResponsiveValues.spacingXXL(context),
@@ -1676,7 +1676,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
     }
 
     VideoQuality? quality = _downloadQuality[video.id];
-    if (quality == null && video.hasQualities) {
+    if (quality == null && video.availableQualities.length > 1) {
       quality = await _showQualitySelector(video, forPlayback: false);
       if (quality == null) return;
       if (isMounted) {

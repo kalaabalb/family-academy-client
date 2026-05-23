@@ -3119,7 +3119,7 @@ class NoteDetailScreen extends StatelessWidget {
               'display:inline-block;min-width:1.6em;font-weight:700;';
         prefix.nodes.add(html_dom.Text('$symbol '));
         paragraph.nodes.add(prefix);
-        paragraph.nodes.addAll(item.nodes.map((node) => node.clone(true)));
+        paragraph.nodes.addAll(_flattenListItemNodes(item));
         replacementNodes.add(paragraph);
       }
       list.replaceWith(html_dom.DocumentFragment()..nodes.addAll(replacementNodes));
@@ -3139,7 +3139,7 @@ class NoteDetailScreen extends StatelessWidget {
               'display:inline-block;min-width:2em;font-weight:700;';
         prefix.nodes.add(html_dom.Text('${_orderedListLabel(index, listType)} '));
         paragraph.nodes.add(prefix);
-        paragraph.nodes.addAll(item.nodes.map((node) => node.clone(true)));
+        paragraph.nodes.addAll(_flattenListItemNodes(item));
         replacementNodes.add(paragraph);
         index += 1;
       }
@@ -3152,6 +3152,42 @@ class NoteDetailScreen extends StatelessWidget {
             .replaceAll('<thead>', '')
             .replaceAll('</thead>', '') ??
         content;
+  }
+
+  List<html_dom.Node> _flattenListItemNodes(html_dom.Element item) {
+    final flattened = <html_dom.Node>[];
+
+    void appendBreakIfNeeded() {
+      if (flattened.isEmpty) return;
+      final last = flattened.last;
+      if (last is html_dom.Element && last.localName == 'br') return;
+      flattened.add(html_dom.Element.tag('br'));
+    }
+
+    for (final node in item.nodes) {
+      if (node is html_dom.Text) {
+        if (node.text.trim().isEmpty) continue;
+        flattened.add(node.clone(true));
+        continue;
+      }
+
+      if (node is! html_dom.Element) {
+        flattened.add(node.clone(true));
+        continue;
+      }
+
+      if (node.localName == 'p' || node.localName == 'div') {
+        final inlineNodes = _flattenListItemNodes(node);
+        if (inlineNodes.isEmpty) continue;
+        if (flattened.isNotEmpty) appendBreakIfNeeded();
+        flattened.addAll(inlineNodes);
+        continue;
+      }
+
+      flattened.add(node.clone(true));
+    }
+
+    return flattened;
   }
 
   String _orderedListLabel(int index, String type) {

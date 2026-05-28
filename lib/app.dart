@@ -19,6 +19,7 @@ import 'utils/router.dart';
 import 'services/notification_service.dart';
 import 'services/api_service.dart';
 import 'utils/helpers.dart';
+import 'widgets/common/desktop_input_shell.dart';
 
 class FamilyAcademyApp extends StatefulWidget {
   final ApiService apiService;
@@ -81,8 +82,10 @@ class _FamilyAcademyAppState extends State<FamilyAcademyApp>
   }
 
   void _setupOfflineQueueListener() {
-    final queueManager =
-        Provider.of<queue.OfflineQueueManager>(context, listen: false);
+    final queueManager = Provider.of<queue.OfflineQueueManager>(
+      context,
+      listen: false,
+    );
 
     queueManager.queueStream.listen((items) {
       if (!mounted || !_overlayReady) return;
@@ -107,11 +110,7 @@ class _FamilyAcademyAppState extends State<FamilyAcademyApp>
     }
 
     try {
-      SnackbarService().show(
-        context: context,
-        message: message,
-        type: type,
-      );
+      SnackbarService().show(context: context, message: message, type: type);
     } catch (e) {
       _pendingSnackbars.add({'message': message, 'type': type});
     }
@@ -133,47 +132,54 @@ class _FamilyAcademyAppState extends State<FamilyAcademyApp>
       listen: false,
     );
 
-    _connectivitySubscription =
-        connectivityService.onConnectivityChanged.listen((isOnline) async {
-      if (!mounted) return;
+    _connectivitySubscription = connectivityService.onConnectivityChanged
+        .listen((isOnline) async {
+          if (!mounted) return;
 
-      if (isOnline && _wasOffline) {
-        _showSafeSnackbar(
-          'Back online! Syncing your changes...',
-          SnackbarType.success,
-        );
+          if (isOnline && _wasOffline) {
+            _showSafeSnackbar(
+              'Back online! Syncing your changes...',
+              SnackbarType.success,
+            );
 
-        await widget.notificationService.syncPendingFcmToken();
-        await widget.notificationService.sendFcmTokenToBackendIfAuthenticated();
+            await widget.notificationService.syncPendingFcmToken();
+            await widget.notificationService
+                .sendFcmTokenToBackendIfAuthenticated();
 
-        final queueManager =
-            Provider.of<queue.OfflineQueueManager>(context, listen: false);
-        await queueManager.processQueue();
+            final queueManager = Provider.of<queue.OfflineQueueManager>(
+              context,
+              listen: false,
+            );
+            await queueManager.processQueue();
 
-        await _syncPendingActions();
-        await _refreshAllData();
-      } else if (!isOnline && !_wasOffline) {
-        final queueManager =
-            Provider.of<queue.OfflineQueueManager>(context, listen: false);
-        final settingsProvider =
-            Provider.of<SettingsProvider>(context, listen: false);
-        final pendingCount = queueManager.pendingCount;
+            await _syncPendingActions();
+            await _refreshAllData();
+          } else if (!isOnline && !_wasOffline) {
+            final queueManager = Provider.of<queue.OfflineQueueManager>(
+              context,
+              listen: false,
+            );
+            final settingsProvider = Provider.of<SettingsProvider>(
+              context,
+              listen: false,
+            );
+            final pendingCount = queueManager.pendingCount;
 
-        if (pendingCount > 0) {
-          _showSafeSnackbar(
-            settingsProvider.getAppOfflinePendingMessage(pendingCount),
-            SnackbarType.offline,
-          );
-        } else {
-          _showSafeSnackbar(
-            settingsProvider.getAppOfflineSavedContentMessage(),
-            SnackbarType.offline,
-          );
-        }
-      }
+            if (pendingCount > 0) {
+              _showSafeSnackbar(
+                settingsProvider.getAppOfflinePendingMessage(pendingCount),
+                SnackbarType.offline,
+              );
+            } else {
+              _showSafeSnackbar(
+                settingsProvider.getAppOfflineSavedContentMessage(),
+                SnackbarType.offline,
+              );
+            }
+          }
 
-      _wasOffline = !isOnline;
-    });
+          _wasOffline = !isOnline;
+        });
   }
 
   void _startPeriodicSync() {
@@ -183,8 +189,10 @@ class _FamilyAcademyAppState extends State<FamilyAcademyApp>
           context,
           listen: false,
         );
-        final queueManager =
-            Provider.of<queue.OfflineQueueManager>(context, listen: false);
+        final queueManager = Provider.of<queue.OfflineQueueManager>(
+          context,
+          listen: false,
+        );
 
         if (_isAppInForeground &&
             connectivity.isOnline &&
@@ -205,8 +213,10 @@ class _FamilyAcademyAppState extends State<FamilyAcademyApp>
 
     if (!connectivity.isOnline) return;
 
-    final queueManager =
-        Provider.of<queue.OfflineQueueManager>(context, listen: false);
+    final queueManager = Provider.of<queue.OfflineQueueManager>(
+      context,
+      listen: false,
+    );
 
     if (queueManager.pendingCount == 0) return;
 
@@ -271,23 +281,31 @@ class _FamilyAcademyAppState extends State<FamilyAcademyApp>
 
       widget.notificationService.apiService = widget.apiService;
 
-      final subscriptionProvider =
-          Provider.of<SubscriptionProvider>(context, listen: false);
-      final categoryProvider =
-          Provider.of<CategoryProvider>(context, listen: false);
+      final subscriptionProvider = Provider.of<SubscriptionProvider>(
+        context,
+        listen: false,
+      );
+      final categoryProvider = Provider.of<CategoryProvider>(
+        context,
+        listen: false,
+      );
       subscriptionProvider.setCategoryProvider(categoryProvider);
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      _deviceDeactivatedSubscription =
-          authProvider.deviceDeactivated.listen((message) {
+      _deviceDeactivatedSubscription = authProvider.deviceDeactivated.listen((
+        message,
+      ) {
         if (mounted) {
           _showDeviceDeactivatedDialog(
-              message ?? 'Device has been deactivated.');
+            message ?? 'Device has been deactivated.',
+          );
         }
       });
       authProvider.registerOnLoginCallback(() {
         unawaited(widget.notificationService.syncPendingFcmToken());
-        unawaited(widget.notificationService.sendFcmTokenToBackendIfAuthenticated());
+        unawaited(
+          widget.notificationService.sendFcmTokenToBackendIfAuthenticated(),
+        );
       });
       authProvider.registerOnLogoutCallback(() {
         unawaited(widget.notificationService.clearBackendTokenAssociation());
@@ -295,8 +313,9 @@ class _FamilyAcademyAppState extends State<FamilyAcademyApp>
 
       await authProvider.initialize();
 
-      widget.notificationService.notificationStream
-          .listen(_handleNotificationData);
+      widget.notificationService.notificationStream.listen(
+        _handleNotificationData,
+      );
 
       if (authProvider.isAuthenticated) {
         await widget.notificationService.syncPendingFcmToken();
@@ -324,8 +343,10 @@ class _FamilyAcademyAppState extends State<FamilyAcademyApp>
             onPressed: () async {
               Navigator.of(context).pop();
               if (mounted) {
-                final authProvider =
-                    Provider.of<AuthProvider>(context, listen: false);
+                final authProvider = Provider.of<AuthProvider>(
+                  context,
+                  listen: false,
+                );
                 await authProvider.logout(manual: false);
                 GoRouter.of(context).go('/auth/login');
               }
@@ -357,16 +378,26 @@ class _FamilyAcademyAppState extends State<FamilyAcademyApp>
       }
       _lastDataRefreshAt = now;
 
-      final subscriptionProvider =
-          Provider.of<SubscriptionProvider>(context, listen: false);
-      final categoryProvider =
-          Provider.of<CategoryProvider>(context, listen: false);
+      final subscriptionProvider = Provider.of<SubscriptionProvider>(
+        context,
+        listen: false,
+      );
+      final categoryProvider = Provider.of<CategoryProvider>(
+        context,
+        listen: false,
+      );
       subscriptionProvider.setCategoryProvider(categoryProvider);
 
-      unawaited(subscriptionProvider.loadSubscriptions().catchError(
-          (e) => debugLog('FamilyAcademyApp', 'Refresh error: $e')));
-      unawaited(categoryProvider.loadCategories().catchError(
-          (e) => debugLog('FamilyAcademyApp', 'Refresh error: $e')));
+      unawaited(
+        subscriptionProvider.loadSubscriptions().catchError(
+          (e) => debugLog('FamilyAcademyApp', 'Refresh error: $e'),
+        ),
+      );
+      unawaited(
+        categoryProvider.loadCategories().catchError(
+          (e) => debugLog('FamilyAcademyApp', 'Refresh error: $e'),
+        ),
+      );
     }
   }
 
@@ -385,10 +416,12 @@ class _FamilyAcademyAppState extends State<FamilyAcademyApp>
         });
         break;
       default:
-        unawaited(widget.notificationService.showLocalNotification(
-          title: data['title'] ?? 'Notification',
-          body: data['message'] ?? '',
-        ));
+        unawaited(
+          widget.notificationService.showLocalNotification(
+            title: data['title'] ?? 'Notification',
+            body: data['message'] ?? '',
+          ),
+        );
         break;
     }
   }
@@ -406,10 +439,14 @@ class _FamilyAcademyAppState extends State<FamilyAcademyApp>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_appInitialized) return;
 
-      final subscriptionProvider =
-          Provider.of<SubscriptionProvider>(context, listen: false);
-      final categoryProvider =
-          Provider.of<CategoryProvider>(context, listen: false);
+      final subscriptionProvider = Provider.of<SubscriptionProvider>(
+        context,
+        listen: false,
+      );
+      final categoryProvider = Provider.of<CategoryProvider>(
+        context,
+        listen: false,
+      );
       subscriptionProvider.setCategoryProvider(categoryProvider);
 
       subscriptionProvider.refreshAfterPaymentVerification().then((_) {
@@ -431,22 +468,27 @@ class _FamilyAcademyAppState extends State<FamilyAcademyApp>
           themeMode: themeProvider.themeMode,
           routerConfig: appRouter.router,
           debugShowCheckedModeBanner: false,
+          scrollBehavior: const DesktopScrollBehavior(),
           builder: (context, child) {
             return MediaQuery(
               data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.linear(ScreenSize.isDesktop(context)
-                    ? 1.1
-                    : ScreenSize.isTablet(context)
-                        ? 1.05
-                        : 1.0),
+                textScaler: TextScaler.linear(
+                  ScreenSize.isDesktop(context)
+                      ? 1.1
+                      : ScreenSize.isTablet(context)
+                      ? 1.05
+                      : 1.0,
+                ),
               ),
-              child: PopScope(
-                onPopInvokedWithResult: (didPop, result) {
-                  if (didPop && _isAppInForeground) {
-                    ScreenProtectionService.enableOnResume();
-                  }
-                },
-                child: child ?? const SizedBox(),
+              child: DesktopInputShell(
+                child: PopScope(
+                  onPopInvokedWithResult: (didPop, result) {
+                    if (didPop && _isAppInForeground) {
+                      ScreenProtectionService.enableOnResume();
+                    }
+                  },
+                  child: child ?? const SizedBox(),
+                ),
               ),
             );
           },

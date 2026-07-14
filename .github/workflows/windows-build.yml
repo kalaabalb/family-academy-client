@@ -1,0 +1,105 @@
+name: Build Windows App
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: client-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BASE_URL: https://family-academy-backend-a12l.onrender.com
+  API_VERSION: v1
+  API_BASE_URL: https://family-academy-backend-a12l.onrender.com
+  APP_NAME: Family Academy
+  APP_VERSION: 1.0.0
+  APP_ENVIRONMENT: production
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Enable Windows Desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Clean
+        run: flutter clean
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Create .env file
+        run: |
+          echo "BASE_URL=$env:BASE_URL" > .env
+          echo "API_VERSION=$env:API_VERSION" >> .env
+          echo "API_BASE_URL=$env:API_BASE_URL" >> .env
+          echo "APP_NAME=$env:APP_NAME" >> .env
+          echo "APP_VERSION=$env:APP_VERSION" >> .env
+          echo "APP_ENVIRONMENT=$env:APP_ENVIRONMENT" >> .env
+
+      - name: Build Windows Release
+        run: flutter build windows --release --dart-define=API_BASE_URL=${{ env.API_BASE_URL }}
+
+      - name: Download VC++ Redistributable
+        run: |
+          Invoke-WebRequest `
+            -Uri "https://aka.ms/vc14/vc_redist.x64.exe" `
+            -OutFile "windows\\installer\\VC_redist.x64.exe"
+
+      - name: Create Installer Structure
+        run: |
+          mkdir installer
+          copy build\windows\x64\runner\Release\*.exe installer\
+          copy build\windows\x64\runner\Release\*.dll installer\
+          xcopy /E /I build\windows\x64\runner\Release\data installer\data\
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build Windows Installer
+        run: |
+          iscc /O"windows\\installer\\output" "windows\\installer\\FamilyAcademy.iss"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: family-academy-windows
+          path: installer/
+          compression-level: 9
+
+      - name: Create ZIP for easy download
+        run: |
+          cd installer
+          powershell Compress-Archive -Path * -DestinationPath ..\family-academy-windows.zip
+          cd ..
+
+      - name: Upload ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: family-academy-windows-zip
+          path: family-academy-windows.zip
+          compression-level: 9
+
+      - name: Upload Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: family-academy-windows-installer
+          path: windows/installer/output/FamilyAcademyInstaller.exe
+          compression-level: 0

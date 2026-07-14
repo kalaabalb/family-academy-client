@@ -1,0 +1,492 @@
+import 'dart:async';
+
+import 'package:familyacademyclient/models/exam_model.dart';
+import 'package:familyacademyclient/models/category_model.dart';
+import 'package:familyacademyclient/utils/responsive_values.dart';
+import 'package:flutter/foundation.dart' show kReleaseMode;
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:familyacademyclient/providers/auth_provider.dart';
+import 'package:familyacademyclient/screens/splash/splash_screen.dart';
+import 'package:familyacademyclient/screens/auth/device_change_screen.dart';
+import 'package:familyacademyclient/screens/auth/login_screen.dart';
+import 'package:familyacademyclient/screens/auth/register_screen.dart';
+import 'package:familyacademyclient/screens/category/category_detail_screen.dart';
+import 'package:familyacademyclient/screens/chapter/chapter_content_screen.dart';
+import 'package:familyacademyclient/screens/course/course_detail_screen.dart';
+import 'package:familyacademyclient/screens/exam/exam_screen.dart';
+import 'package:familyacademyclient/screens/main/chatbot_screen.dart';
+import 'package:familyacademyclient/screens/main/home_screen.dart';
+import 'package:familyacademyclient/screens/main/main_navigation.dart';
+import 'package:familyacademyclient/screens/main/profile_screen.dart';
+import 'package:familyacademyclient/screens/main/progress_screen.dart';
+import 'package:familyacademyclient/screens/notifications/notification_screen.dart';
+import 'package:familyacademyclient/screens/onboarding/school_selection_screen.dart';
+import 'package:familyacademyclient/screens/payment/payment_screen.dart';
+import 'package:familyacademyclient/screens/payment/payment_success_screen.dart';
+import 'package:familyacademyclient/screens/settings/parent_link_screen.dart';
+import 'package:familyacademyclient/screens/settings/subscription_screen.dart';
+import 'package:familyacademyclient/screens/settings/support_screen.dart';
+import 'package:familyacademyclient/screens/settings/tv_pairing_screen.dart';
+import 'package:familyacademyclient/utils/helpers.dart';
+
+class AppRouter {
+  late final GoRouter router;
+  bool _isDeviceChangeInProgress = false;
+  bool _isNavigatingToHome = false;
+  bool _isNavigatingToSchoolSelection = false;
+  bool _isNavigatingFromDeviceChange = false;
+  Map<String, dynamic>? _pendingDeviceChangeData;
+
+  AppRouter() {
+    router = GoRouter(
+      initialLocation: '/splash',
+      redirect: (context, state) async {
+        final location = state.uri.toString();
+
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+        if (_isNavigatingToHome ||
+            _isNavigatingToSchoolSelection ||
+            _isNavigatingFromDeviceChange) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            _isNavigatingToHome = false;
+            _isNavigatingToSchoolSelection = false;
+            _isNavigatingFromDeviceChange = false;
+          });
+          return null;
+        }
+
+        if (authProvider.requiresDeviceChange && !_isDeviceChangeInProgress) {
+          final lastLoginResult = authProvider.lastLoginResult;
+
+          if (lastLoginResult != null && lastLoginResult['data'] != null) {
+            _pendingDeviceChangeData = {
+              'username': lastLoginResult['username'],
+              'password': lastLoginResult['password'],
+              'deviceId': lastLoginResult['deviceId'],
+              'fcmToken': lastLoginResult['fcmToken'],
+              'currentDeviceId': lastLoginResult['data']['currentDeviceId'],
+              'newDeviceId': lastLoginResult['data']['newDeviceId'],
+              'changeCount': lastLoginResult['data']['changeCount'] ?? 0,
+              'maxChanges': lastLoginResult['data']['maxChanges'] ?? 2,
+              'remainingChanges':
+                  lastLoginResult['data']['remainingChanges'] ?? 2,
+              'canChangeDevice':
+                  lastLoginResult['data']['canChangeDevice'] ?? true,
+              'data': lastLoginResult['data'], // Include full data
+            };
+          }
+
+          _isDeviceChangeInProgress = true;
+          if (location != '/device-change') return '/device-change';
+        }
+
+        if (location.startsWith('/device-change')) return null;
+
+        // ✅ FIXED: Clear device change requirement when navigating away
+        if (!location.startsWith('/device-change') &&
+            _isDeviceChangeInProgress) {
+          _isDeviceChangeInProgress = false;
+          _pendingDeviceChangeData = null;
+          // Clear the device change requirement from auth provider
+          unawaited(authProvider.clearDeviceChangeRequirement());
+        }
+
+        if (location == '/splash') {
+          if (authProvider.isInitialized) {
+            if (authProvider.isAuthenticated) {
+              final user = authProvider.currentUser;
+              if (user?.schoolId == null) {
+                return '/school-selection';
+              } else {
+                return '/';
+              }
+            } else {
+              return '/auth/login';
+            }
+          }
+          return null;
+        }
+
+        if (!authProvider.isInitialized && location != '/splash') {
+          return '/splash';
+        }
+
+        final isAuthenticated = authProvider.isAuthenticated;
+        final user = authProvider.currentUser;
+
+        final publicRoutes = [
+          '/auth/login',
+          '/auth/register',
+          '/device-change',
+          '/payment-success'
+        ];
+
+        final isPublicRoute = publicRoutes.any(
+            (route) => location == route || location.startsWith('$route?'));
+
+        if (!isAuthenticated && !isPublicRoute) return '/auth/login';
+
+        if (isAuthenticated &&
+            location.startsWith('/auth/') &&
+            location != '/auth/logout') {
+          if (user?.schoolId == null) return '/school-selection';
+          return '/';
+        }
+
+        if (isAuthenticated) {
+          if (user?.schoolId == null &&
+              location != '/school-selection' &&
+              location != '/payment-success' &&
+              !location.startsWith('/auth/') &&
+              location != '/splash' &&
+              !location.startsWith('/device-change')) {
+            return '/school-selection';
+          }
+        }
+
+        return null;
+      },
+      routes: [
+        GoRoute(
+          path: '/splash',
+          name: 'splash',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: const SplashScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) =>
+                    FadeTransition(opacity: animation, child: child),
+          ),
+        ),
+        GoRoute(
+          path: '/auth/register',
+          name: 'register',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: const RegisterScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) =>
+                    SlideTransition(
+              position:
+                  Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
+                      .animate(animation),
+              child: child,
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/auth/login',
+          name: 'login',
+          pageBuilder: (context, state) {
+            final forceLogin = state.uri.queryParameters['force'] == 'true';
+            return CustomTransitionPage(
+              key: state.pageKey,
+              child: const LoginScreen(),
+              fullscreenDialog: forceLogin,
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) =>
+                      FadeTransition(opacity: animation, child: child),
+            );
+          },
+        ),
+        GoRoute(
+          path: '/device-change',
+          name: 'device-change',
+          pageBuilder: (context, state) {
+            Map<String, dynamic> extra = {};
+
+            debugLog('Router', 'DeviceChange route called');
+
+            if (state.extra != null && state.extra is Map<String, dynamic>) {
+              extra = Map<String, dynamic>.from(state.extra as Map);
+              debugLog(
+                  'Router', 'Got extra from state with keys: ${extra.keys}');
+            } else if (_pendingDeviceChangeData != null) {
+              extra = Map<String, dynamic>.from(_pendingDeviceChangeData!);
+              debugLog('Router', 'Using pending device change data');
+            }
+
+            return MaterialPage(
+              key: state.pageKey,
+              child: const DeviceChangeScreen(),
+              fullscreenDialog: true,
+              arguments: extra,
+            );
+          },
+        ),
+        GoRoute(
+          path: '/school-selection',
+          name: 'school-selection',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: const SchoolSelectionScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) =>
+                    FadeTransition(opacity: animation, child: child),
+          ),
+        ),
+        GoRoute(
+          path: '/payment',
+          name: 'payment',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: PaymentScreen(extra: state.extra as Map<String, dynamic>?),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) =>
+                    SlideTransition(
+              position:
+                  Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+                      .animate(animation),
+              child: child,
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/payment-success',
+          name: 'payment-success',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: PaymentSuccessScreen(
+                extra: state.extra as Map<String, dynamic>?),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) =>
+                    FadeTransition(opacity: animation, child: child),
+          ),
+        ),
+        GoRoute(
+          path: '/subscriptions',
+          name: 'subscriptions',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: const SubscriptionScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) =>
+                    SlideTransition(
+              position:
+                  Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
+                      .animate(animation),
+              child: child,
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/tv-pairing',
+          name: 'tv-pairing',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: const TvPairingScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) =>
+                    FadeTransition(opacity: animation, child: child),
+          ),
+        ),
+        GoRoute(
+          path: '/parent-link',
+          name: 'parent-link',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: const ParentLinkScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) =>
+                    SlideTransition(
+              position:
+                  Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
+                      .animate(animation),
+              child: child,
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/support',
+          name: 'support',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: const SupportScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) =>
+                    FadeTransition(opacity: animation, child: child),
+          ),
+        ),
+        GoRoute(
+          path: '/notifications',
+          name: 'notifications',
+          pageBuilder: (context, state) => CustomTransitionPage(
+            key: state.pageKey,
+            child: const NotificationsScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) =>
+                    SlideTransition(
+              position:
+                  Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+                      .animate(animation),
+              child: child,
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/category/:categoryId',
+          name: 'category-detail',
+          pageBuilder: (context, state) {
+            final categoryId =
+                int.tryParse(state.pathParameters['categoryId'] ?? '0') ?? 0;
+            final category = state.extra is Category ? state.extra as Category : null;
+            return CustomTransitionPage(
+              key: ValueKey('category-$categoryId'),
+              child: CategoryDetailScreen(
+                categoryId: categoryId,
+                category: category,
+              ),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) =>
+                      FadeTransition(opacity: animation, child: child),
+            );
+          },
+        ),
+        GoRoute(
+          path: '/course/:courseId',
+          name: 'course-detail',
+          pageBuilder: (context, state) {
+            final courseId =
+                int.tryParse(state.pathParameters['courseId'] ?? '0') ?? 0;
+            return CustomTransitionPage(
+              key: ValueKey('course-$courseId'),
+              child: CourseDetailScreen(courseId: courseId),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) =>
+                      SlideTransition(
+                position:
+                    Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
+                        .animate(animation),
+                child: child,
+              ),
+            );
+          },
+        ),
+        GoRoute(
+          path: '/chapter/:chapterId',
+          name: 'chapter-content',
+          pageBuilder: (context, state) {
+            final chapterId =
+                int.tryParse(state.pathParameters['chapterId'] ?? '0') ?? 0;
+            final extra = state.extra is Map<String, dynamic>
+                ? state.extra as Map<String, dynamic>
+                : null;
+            return CustomTransitionPage(
+              key: ValueKey('chapter-$chapterId'),
+              child: ChapterContentScreen(
+                chapterId: chapterId,
+                chapter: extra?['chapter'],
+                course: extra?['course'],
+                category: extra?['category'],
+                hasAccess: extra?['hasAccess'] as bool?,
+              ),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) =>
+                      FadeTransition(opacity: animation, child: child),
+            );
+          },
+        ),
+        GoRoute(
+          path: '/exam/:examId',
+          name: 'exam',
+          pageBuilder: (context, state) {
+            final examId =
+                int.tryParse(state.pathParameters['examId'] ?? '0') ?? 0;
+            final exam = state.extra as Exam?;
+            return CustomTransitionPage(
+              key: ValueKey('exam-$examId'),
+              child: ExamScreen(examId: examId, exam: exam),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) =>
+                      ScaleTransition(scale: animation, child: child),
+            );
+          },
+        ),
+        ShellRoute(
+          builder: (context, state, child) => MainNavigation(child: child),
+          routes: [
+            GoRoute(
+                path: '/',
+                name: 'home',
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: HomeScreen())),
+            GoRoute(
+                path: '/chatbot',
+                name: 'chatbot',
+                pageBuilder: (context, state) {
+                  final convParam = state.uri.queryParameters['conv'];
+                  final conversationId = int.tryParse(convParam ?? '');
+                  return NoTransitionPage(
+                    child: ChatbotScreen(conversationId: conversationId),
+                  );
+                }),
+            GoRoute(
+                path: '/progress',
+                name: 'progress',
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: ProgressScreen())),
+            GoRoute(
+                path: '/profile',
+                name: 'profile',
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: ProfileScreen())),
+          ],
+        ),
+      ],
+      errorBuilder: (context, state) {
+        return Scaffold(
+          appBar: AppBar(title: const Text('Error')),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline,
+                    size: ResponsiveValues.iconSizeXXXXL(context),
+                    color: Theme.of(context).colorScheme.error),
+                const SizedBox(height: 24),
+                Text('Oops!',
+                    style: TextStyle(
+                        fontSize: ResponsiveValues.fontErrorIcon(context),
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.error)),
+                const SizedBox(height: 16),
+                Text('The page you\'re looking for couldn\'t be found.',
+                    style: Theme.of(context).textTheme.titleLarge,
+                    textAlign: TextAlign.center),
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: () => context.go('/'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Go Home'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      debugLogDiagnostics: !kReleaseMode,
+    );
+  }
+
+  void setNavigatingToHome(bool value) => _isNavigatingToHome = value;
+  void setNavigatingToSchoolSelection(bool value) =>
+      _isNavigatingToSchoolSelection = value;
+  void setNavigatingFromDeviceChange(bool value) =>
+      _isNavigatingFromDeviceChange = value;
+
+  void finishDeviceChangeFlow() {
+    _isDeviceChangeInProgress = false;
+    _pendingDeviceChangeData = null;
+    _isNavigatingFromDeviceChange = true;
+  }
+}
+
+final appRouter = AppRouter();

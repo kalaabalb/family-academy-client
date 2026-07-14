@@ -1,0 +1,377 @@
+import 'package:flutter/material.dart';
+import '../../themes/app_colors.dart';
+import '../../themes/app_text_styles.dart';
+import '../../utils/responsive_values.dart';
+import '../../services/connectivity_service.dart';
+
+class AppTextField extends StatefulWidget {
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final IconData prefixIcon;
+  final TextFieldVariant variant;
+  final TextInputType keyboardType;
+  final bool obscureText;
+  final bool enabled;
+  final String? Function(String?)? validator;
+  final VoidCallback? onTap;
+  final bool readOnly;
+  final int maxLines;
+  final int? minLines;
+  final bool autofocus;
+  final Widget? suffixIcon;
+  final void Function(String)? onChanged;
+  final int? maxLength;
+  final bool requiresOnline; // NEW: Whether this field requires internet
+
+  const AppTextField({
+    super.key,
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.prefixIcon,
+    this.variant = TextFieldVariant.glass,
+    this.keyboardType = TextInputType.text,
+    this.obscureText = false,
+    this.enabled = true,
+    this.validator,
+    this.onTap,
+    this.readOnly = false,
+    this.maxLines = 1,
+    this.minLines,
+    this.autofocus = false,
+    this.suffixIcon,
+    this.onChanged,
+    this.maxLength,
+    this.requiresOnline = false,
+  });
+
+  const AppTextField.password({
+    super.key,
+    required this.controller,
+    required this.label,
+    required this.hint,
+    this.enabled = true,
+    this.validator,
+    this.onChanged,
+    this.requiresOnline = false,
+  })  : prefixIcon = Icons.lock_outline_rounded,
+        variant = TextFieldVariant.glass,
+        keyboardType = TextInputType.text,
+        obscureText = true,
+        onTap = null,
+        readOnly = false,
+        maxLines = 1,
+        minLines = null,
+        autofocus = false,
+        suffixIcon = null,
+        maxLength = null;
+
+  const AppTextField.email({
+    super.key,
+    required this.controller,
+    required this.label,
+    required this.hint,
+    this.enabled = true,
+    this.validator,
+    this.onChanged,
+    this.requiresOnline = false,
+  })  : prefixIcon = Icons.email_outlined,
+        variant = TextFieldVariant.glass,
+        keyboardType = TextInputType.emailAddress,
+        obscureText = false,
+        onTap = null,
+        readOnly = false,
+        maxLines = 1,
+        minLines = null,
+        autofocus = false,
+        suffixIcon = null,
+        maxLength = null;
+
+  const AppTextField.phone({
+    super.key,
+    required this.controller,
+    required this.label,
+    required this.hint,
+    this.enabled = true,
+    this.validator,
+    this.onChanged,
+    this.requiresOnline = false,
+  })  : prefixIcon = Icons.phone_outlined,
+        variant = TextFieldVariant.glass,
+        keyboardType = TextInputType.phone,
+        obscureText = false,
+        onTap = null,
+        readOnly = false,
+        maxLines = 1,
+        minLines = null,
+        autofocus = false,
+        suffixIcon = null,
+        maxLength = null;
+
+  const AppTextField.search({
+    super.key,
+    required this.controller,
+    required this.hint,
+    this.enabled = true,
+    this.onChanged,
+    this.onTap,
+    this.requiresOnline = false,
+  })  : label = '',
+        prefixIcon = Icons.search_rounded,
+        variant = TextFieldVariant.glass,
+        keyboardType = TextInputType.text,
+        obscureText = false,
+        validator = null,
+        readOnly = false,
+        maxLines = 1,
+        minLines = null,
+        autofocus = false,
+        suffixIcon = null,
+        maxLength = null;
+
+  @override
+  State<AppTextField> createState() => _AppTextFieldState();
+}
+
+class _AppTextFieldState extends State<AppTextField> {
+  bool _obscureText = true;
+  bool _hasFocus = false;
+  late FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscureText = widget.obscureText;
+    _focusNode = FocusNode();
+    _focusNode.addListener(_handleFocusChange);
+  }
+
+  @override
+  void didUpdateWidget(AppTextField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.obscureText != widget.obscureText) {
+      _obscureText = widget.obscureText;
+    }
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_handleFocusChange);
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _handleFocusChange() {
+    if (mounted) setState(() => _hasFocus = _focusNode.hasFocus);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final connectivity = ConnectivityService();
+    final isOfflineDisabled = widget.requiresOnline && connectivity.isOffline;
+    final isEnabled = widget.enabled && !isOfflineDisabled;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (widget.label.isNotEmpty) ...[
+          Text(
+            widget.label,
+            style: AppTextStyles.labelLarge(context).copyWith(
+              color: isOfflineDisabled
+                  ? AppColors.warning
+                  : (_hasFocus
+                      ? AppColors.telegramBlue
+                      : AppColors.getTextSecondary(context)),
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.1,
+            ),
+          ),
+          SizedBox(height: ResponsiveValues.spacingXS(context)),
+        ],
+        _buildTextField(context, isEnabled, isOfflineDisabled),
+        if (widget.maxLength != null)
+          Padding(
+            padding: EdgeInsets.only(
+              top: ResponsiveValues.spacingXXS(context),
+              right: ResponsiveValues.spacingS(context),
+            ),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                '${widget.controller.text.length}/${widget.maxLength}',
+                style: AppTextStyles.caption(context).copyWith(
+                  color: widget.controller.text.length >= widget.maxLength!
+                      ? AppColors.telegramRed
+                      : AppColors.getTextSecondary(context),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildTextField(
+      BuildContext context, bool isEnabled, bool isOfflineDisabled) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderRadius =
+        BorderRadius.circular(ResponsiveValues.radiusLarge(context));
+
+    final idleBorderColor = isOfflineDisabled
+        ? AppColors.warning.withValues(alpha: 0.6)
+        : AppColors.getDivider(context).withValues(alpha: isDark ? 0.72 : 0.9);
+    final focusedBorderColor =
+        isOfflineDisabled ? AppColors.warning : AppColors.telegramBlue;
+
+    final outlineBorder = OutlineInputBorder(
+      borderRadius: borderRadius,
+      borderSide: BorderSide(color: idleBorderColor),
+    );
+    final focusedBorder = OutlineInputBorder(
+      borderRadius: borderRadius,
+      borderSide: BorderSide(color: focusedBorderColor, width: 1.4),
+    );
+    final errorBorder = OutlineInputBorder(
+      borderRadius: borderRadius,
+      borderSide: const BorderSide(color: AppColors.telegramRed, width: 1.6),
+    );
+
+    return TextFormField(
+      key: ValueKey(widget.controller.hashCode),
+      controller: widget.controller,
+      focusNode: _focusNode,
+      keyboardType: widget.keyboardType,
+      obscureText: widget.obscureText && _obscureText,
+      enabled: isEnabled,
+      validator: widget.validator,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      onTap: widget.onTap,
+      readOnly: widget.readOnly || isOfflineDisabled,
+      maxLines: widget.maxLines,
+      minLines: widget.minLines,
+      autofocus: widget.autofocus,
+      onChanged: widget.onChanged,
+      maxLength: widget.maxLength,
+      style: AppTextStyles.bodyMedium(context).copyWith(
+        color: isOfflineDisabled
+            ? AppColors.warning
+            : (isEnabled
+                ? AppColors.getTextPrimary(context)
+                : AppColors.getTextSecondary(context)),
+      ),
+      decoration: InputDecoration(
+        hintText: isOfflineDisabled ? 'Internet required' : widget.hint,
+        hintStyle: AppTextStyles.bodyMedium(context).copyWith(
+          color: isOfflineDisabled
+              ? AppColors.warning.withValues(alpha: 0.5)
+              : AppColors.getTextSecondary(context).withValues(alpha: 0.58),
+        ),
+        errorStyle: AppTextStyles.bodySmall(context).copyWith(
+          color: AppColors.telegramRed,
+          height: 1.25,
+          fontWeight: FontWeight.w500,
+        ),
+        errorMaxLines: 2,
+        prefixIcon: _buildPrefixIcon(context, isEnabled, isOfflineDisabled),
+        suffixIcon: _buildSuffixIcon(context, isEnabled, isOfflineDisabled),
+        enabledBorder: outlineBorder,
+        focusedBorder: focusedBorder,
+        border: outlineBorder,
+        errorBorder: errorBorder,
+        focusedErrorBorder: errorBorder,
+        disabledBorder: outlineBorder,
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: ResponsiveValues.spacingL(context),
+          vertical: ResponsiveValues.spacingM(context) - 1,
+        ),
+        counterText: '',
+        isDense: false,
+        filled: true,
+        fillColor: isDark
+            ? AppColors.getSurface(context).withValues(alpha: 0.88)
+            : AppColors.getSurface(context).withValues(alpha: 0.98),
+      ),
+    );
+  }
+
+  Widget _buildPrefixIcon(
+      BuildContext context, bool isEnabled, bool isOfflineDisabled) {
+    final iconColor = isOfflineDisabled
+        ? AppColors.warning
+        : (_hasFocus
+            ? AppColors.telegramBlue
+            : AppColors.getTextSecondary(context));
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: ResponsiveValues.spacingM(context),
+        right: ResponsiveValues.spacingS(context),
+      ),
+      child: Icon(
+        isOfflineDisabled ? Icons.wifi_off_rounded : widget.prefixIcon,
+        size: ResponsiveValues.iconSizeS(context),
+        color: iconColor,
+      ),
+    );
+  }
+
+  Widget? _buildSuffixIcon(
+      BuildContext context, bool isEnabled, bool isOfflineDisabled) {
+    if (widget.suffixIcon != null) return widget.suffixIcon;
+
+    if (widget.obscureText && !isOfflineDisabled) {
+      return Padding(
+        padding: EdgeInsets.only(right: ResponsiveValues.spacingS(context)),
+        child: IconButton(
+          icon: Icon(
+            _obscureText ? Icons.visibility_off : Icons.visibility,
+            size: ResponsiveValues.iconSizeS(context),
+            color: _hasFocus
+                ? AppColors.telegramBlue
+                : AppColors.getTextSecondary(context),
+          ),
+          onPressed: () => setState(() => _obscureText = !_obscureText),
+          splashRadius: 20,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+        ),
+      );
+    }
+
+    if (widget.controller.text.isNotEmpty && isEnabled && !isOfflineDisabled) {
+      return Padding(
+        padding: EdgeInsets.only(right: ResponsiveValues.spacingS(context)),
+        child: IconButton(
+          icon: Icon(
+            Icons.clear_rounded,
+            size: ResponsiveValues.iconSizeS(context),
+            color: AppColors.getTextSecondary(context),
+          ),
+          onPressed: () {
+            widget.controller.clear();
+            widget.onChanged?.call('');
+          },
+          splashRadius: 20,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+        ),
+      );
+    }
+
+    if (isOfflineDisabled) {
+      return Padding(
+        padding: EdgeInsets.only(right: ResponsiveValues.spacingS(context)),
+        child: Icon(
+          Icons.wifi_off_rounded,
+          size: ResponsiveValues.iconSizeS(context),
+          color: AppColors.warning,
+        ),
+      );
+    }
+
+    return null;
+  }
+}

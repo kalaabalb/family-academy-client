@@ -4,6 +4,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:html/dom.dart' as html_dom;
@@ -345,6 +346,10 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
     _currentUserId = _authProvider.currentUser?.id.toString();
   }
 
+  bool _isScheduledForFuture(DateTime? releaseDate) {
+    return releaseDate != null && releaseDate.isAfter(DateTime.now());
+  }
+
   Future<Directory> _getAppCacheDirectory() async {
     final appDocDir = await getApplicationDocumentsDirectory();
     final cacheDir = Directory('${appDocDir.path}/.familyacademy_cache/videos');
@@ -549,7 +554,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
       return;
     }
 
-    if (_chapter!.isScheduledForFuture) {
+    if (_isScheduledForFuture(_chapter!.releaseDate)) {
       _hasAccess = false;
       setState(() {
         _isCheckingAccess = false;
@@ -2141,7 +2146,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
   }
 
   Widget _buildAccessDeniedScreen() {
-    final isScheduled = _chapter?.isScheduledForFuture ?? false;
+    final isScheduled = _isScheduledForFuture(_chapter?.releaseDate);
     final isFree = _chapter?.isFree ?? false;
 
     return Center(
@@ -2235,7 +2240,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
   Widget _buildVideosTab() {
     final videos = _videoProvider
         .getVideosByChapter(widget.chapterId)
-        .where((video) => !video.isScheduledForFuture)
+        .where((video) => !_isScheduledForFuture(video.releaseDate))
         .toList();
     final isDesktop = ScreenSize.isDesktop(context);
     final isWaitingForInitialContent = _shouldShowInitialTabShimmer(
@@ -2333,7 +2338,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
   Widget _buildNotesTab() {
     final notes = _noteProvider
         .getNotesByChapter(widget.chapterId)
-        .where((note) => !note.isScheduledForFuture)
+        .where((note) => !_isScheduledForFuture(note.releaseDate))
         .toList();
     final isWaitingForInitialContent = _shouldShowInitialTabShimmer(
       hasItems: notes.isNotEmpty,
@@ -2347,71 +2352,99 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
     }
 
     if (notes.isEmpty) {
-      return ListView(
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: ResponsiveValues.screenPadding(context),
-        children: [
-          SizedBox(height: ResponsiveValues.spacingXXL(context)),
-          Center(
-            child: buildEmptyWidget(
-              dataType: AppStrings.notes,
-              customMessage: isOffline
-                  ? context
-                      .read<SettingsProvider>()
-                      .getChapterNotesOfflineEmptyMessage()
-                  : context
-                      .read<SettingsProvider>()
-                      .getChapterNotesEmptyMessage(),
-              isOffline: isOffline,
+      return Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerSignal: (event) {
+          if (event is! PointerScrollEvent || !_scrollController.hasClients) {
+            return;
+          }
+
+          final position = _scrollController.position;
+          final targetOffset = (_scrollController.offset + event.scrollDelta.dy)
+              .clamp(position.minScrollExtent, position.maxScrollExtent);
+          if ((targetOffset - _scrollController.offset).abs() < 0.5) return;
+          _scrollController.jumpTo(targetOffset.toDouble());
+        },
+        child: ListView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: ResponsiveValues.screenPadding(context),
+          children: [
+            SizedBox(height: ResponsiveValues.spacingXXL(context)),
+            Center(
+              child: buildEmptyWidget(
+                dataType: AppStrings.notes,
+                customMessage: isOffline
+                    ? context
+                        .read<SettingsProvider>()
+                        .getChapterNotesOfflineEmptyMessage()
+                    : context
+                        .read<SettingsProvider>()
+                        .getChapterNotesEmptyMessage(),
+                isOffline: isOffline,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     }
 
-    return ListView.builder(
-      controller: _scrollController,
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: ResponsiveValues.screenPadding(context),
-      itemCount: notes.length,
-      itemBuilder: (context, index) {
-        final note = notes[index];
-        final isDownloaded = _cachedNotePaths.containsKey(note.id);
-        final isDownloading = _isDownloading[note.id] == true;
-        final downloadProgress = _downloadProgress[note.id] ?? 0.0;
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerSignal: (event) {
+        if (event is! PointerScrollEvent || !_scrollController.hasClients) {
+          return;
+        }
 
-        return Padding(
-          padding: EdgeInsets.only(bottom: ResponsiveValues.spacingL(context)),
-          child: NoteCard(
-            note: note,
-            chapterId: widget.chapterId,
-            index: index,
-            isDownloaded: isDownloaded,
-            isDownloading: isDownloading,
-            downloadProgress: downloadProgress,
-            onTap: () {
-              _progressProvider.saveChapterProgress(
-                chapterId: note.chapterId,
-                notesViewed: true,
-                studyTimeMinutes: 0.5,
-              );
-              _noteProvider.markNoteAsViewed(note.id);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => NoteDetailScreen(
-                    note: note,
-                    cachedPath: _cachedNotePaths[note.id],
-                  ),
-                ),
-              );
-            },
-            onDownload: () => _downloadNote(note),
-            onRemove: () => _removeDownloadedNote(note),
-          ),
-        );
+        final position = _scrollController.position;
+        final targetOffset = (_scrollController.offset + event.scrollDelta.dy)
+            .clamp(position.minScrollExtent, position.maxScrollExtent);
+        if ((targetOffset - _scrollController.offset).abs() < 0.5) return;
+        _scrollController.jumpTo(targetOffset.toDouble());
       },
+      child: ListView.builder(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: ResponsiveValues.screenPadding(context),
+        itemCount: notes.length,
+        itemBuilder: (context, index) {
+          final note = notes[index];
+          final isDownloaded = _cachedNotePaths.containsKey(note.id);
+          final isDownloading = _isDownloading[note.id] == true;
+          final downloadProgress = _downloadProgress[note.id] ?? 0.0;
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: ResponsiveValues.spacingL(context)),
+            child: NoteCard(
+              note: note,
+              chapterId: widget.chapterId,
+              index: index,
+              isDownloaded: isDownloaded,
+              isDownloading: isDownloading,
+              downloadProgress: downloadProgress,
+              onTap: () {
+                _progressProvider.saveChapterProgress(
+                  chapterId: note.chapterId,
+                  notesViewed: true,
+                  studyTimeMinutes: 0.5,
+                );
+                _noteProvider.markNoteAsViewed(note.id);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => NoteDetailScreen(
+                      note: note,
+                      cachedPath: _cachedNotePaths[note.id],
+                    ),
+                  ),
+                );
+              },
+              onDownload: () => _downloadNote(note),
+              onRemove: () => _removeDownloadedNote(note),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -2880,48 +2913,62 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
     // Increased max widths: desktop 760→860, tablet 680→760
     final paperWidth = isDesktop ? 860.0 : (isTablet ? 760.0 : double.infinity);
 
-    return ScrollConfiguration(
-      behavior: const DesktopScrollBehavior(),
-      child: Scrollbar(
-        controller: _textScrollController,
-        thumbVisibility: isDesktop,
-        interactive: true,
-        child: SingleChildScrollView(
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerSignal: (event) {
+        if (event is! PointerScrollEvent || !_textScrollController.hasClients) {
+          return;
+        }
+
+        final position = _textScrollController.position;
+        final targetOffset = (_textScrollController.offset + event.scrollDelta.dy)
+            .clamp(position.minScrollExtent, position.maxScrollExtent);
+        if ((targetOffset - _textScrollController.offset).abs() < 0.5) return;
+        _textScrollController.jumpTo(targetOffset.toDouble());
+      },
+      child: ScrollConfiguration(
+        behavior: const DesktopScrollBehavior(),
+        child: Scrollbar(
           controller: _textScrollController,
-          physics: const ClampingScrollPhysics(),
-          padding: EdgeInsets.symmetric(
-            horizontal: isPhone ? 0 : (isDesktop ? 24 : 20),
-            vertical: isDesktop ? 28 : (isTablet ? 24 : 20),
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: paperWidth),
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isPhone ? 16 : (isDesktop ? 56 : 44),
-                  vertical: isDesktop ? 48 : (isTablet ? 40 : 32),
-                ),
-                decoration: isPhone
-                    ? null
-                    : BoxDecoration(
-                        color: AppColors.getSurface(context),
-                        borderRadius: BorderRadius.circular(
-                          ResponsiveValues.radiusXLarge(context),
-                        ),
-                        border: Border.all(
-                          color: AppColors.getDivider(context)
-                              .withValues(alpha: 0.65),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.06),
-                            blurRadius: 24,
-                            offset: const Offset(0, 12),
+          thumbVisibility: isDesktop,
+          interactive: true,
+          child: SingleChildScrollView(
+            controller: _textScrollController,
+            physics: const ClampingScrollPhysics(),
+            padding: EdgeInsets.symmetric(
+              horizontal: isPhone ? 0 : (isDesktop ? 24 : 20),
+              vertical: isDesktop ? 28 : (isTablet ? 24 : 20),
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: paperWidth),
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isPhone ? 16 : (isDesktop ? 56 : 44),
+                    vertical: isDesktop ? 48 : (isTablet ? 40 : 32),
+                  ),
+                  decoration: isPhone
+                      ? null
+                      : BoxDecoration(
+                          color: AppColors.getSurface(context),
+                          borderRadius: BorderRadius.circular(
+                            ResponsiveValues.radiusXLarge(context),
                           ),
-                        ],
-                      ),
-                child: SelectionContainer.disabled(
-                  child: _buildNoteHtml(context, content),
+                          border: Border.all(
+                            color: AppColors.getDivider(context)
+                                .withValues(alpha: 0.65),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.06),
+                              blurRadius: 24,
+                              offset: const Offset(0, 12),
+                            ),
+                          ],
+                        ),
+                  child: SelectionContainer.disabled(
+                    child: _buildNoteHtml(context, content),
+                  ),
                 ),
               ),
             ),

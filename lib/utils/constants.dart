@@ -10,7 +10,7 @@ class AppConstants {
       if (env != null && env.isNotEmpty) return env;
     } catch (_) {}
     return const String.fromEnvironment('API_BASE_URL',
-        defaultValue: 'https://family-academy-backend-a12l.onrender.com');
+        defaultValue: 'https://api.familyacademy.et');
   }
 
   static const int apiTimeoutSeconds = 45;

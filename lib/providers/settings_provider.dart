@@ -950,7 +950,10 @@ class SettingsProvider extends ChangeNotifier
           key.contains('bot')) {
         type = ContactType.telegram;
         icon = Icons.telegram;
-      } else if (key.contains('address') || key.contains('location')) {
+      } else if (key.contains('address') ||
+          key.contains('location') ||
+          key.contains('map') ||
+          key.contains('coordinate')) {
         type = ContactType.address;
         icon = Icons.location_on;
       } else if (key.contains('hours') || key.contains('time')) {

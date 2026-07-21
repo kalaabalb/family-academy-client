@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart' hide RefreshIndicator;
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../providers/parent_link_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -23,6 +22,7 @@ import '../../themes/app_text_styles.dart';
 import '../../utils/responsive_values.dart';
 import '../../utils/helpers.dart';
 import '../../utils/constants.dart';
+import '../../utils/external_link_launcher.dart';
 
 class ParentLinkScreen extends StatefulWidget {
   const ParentLinkScreen({super.key});
@@ -992,10 +992,13 @@ class _ParentLinkScreenState extends State<ParentLinkScreen>
   }
 
   Future<void> _openTelegramBot(String url) async {
-    final Uri uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
+    final normalizedUrl = url.startsWith('http')
+        ? url
+        : url.startsWith('@')
+            ? 'https://t.me/${url.substring(1)}'
+            : 'https://t.me/$url';
+    final launched = await ExternalLinkLauncher.launch(Uri.parse(normalizedUrl));
+    if (!launched) {
       SnackbarService().showError(context, AppStrings.cannotOpenTelegram);
     }
   }

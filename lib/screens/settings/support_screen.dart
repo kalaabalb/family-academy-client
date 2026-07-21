@@ -1,23 +1,21 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart' hide RefreshIndicator;
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../providers/settings_provider.dart';
 import '../../services/snackbar_service.dart';
 import '../../widgets/common/base_screen_mixin.dart';
 import '../../widgets/common/app_card.dart';
-import '../../widgets/common/app_dialog.dart';
 import '../../themes/app_themes.dart';
 import '../../themes/app_colors.dart';
 import '../../themes/app_text_styles.dart';
 import '../../utils/responsive_values.dart';
 import '../../utils/helpers.dart';
 import '../../utils/constants.dart';
+import '../../utils/external_link_launcher.dart';
 
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
@@ -221,18 +219,17 @@ class _SupportScreenState extends State<SupportScreen>
           final url = value.startsWith('http') ? value : 'https://$value';
           uri = Uri.parse(url);
         } else {
-          _showCopyDialog(value);
+          await _copyContactValue(value);
           return;
         }
         break;
     }
 
     try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        if (type == ContactType.other || type == ContactType.website) {
-          _showCopyDialog(value);
+      final launched = await ExternalLinkLauncher.launch(uri);
+      if (!launched) {
+        if (_canCopyContactValue(type, value)) {
+          await _copyContactValue(value);
         } else {
           SnackbarService().showError(
             context,
@@ -241,8 +238,27 @@ class _SupportScreenState extends State<SupportScreen>
         }
       }
     } catch (e) {
-      _showCopyDialog(value);
+      if (_canCopyContactValue(type, value)) {
+        await _copyContactValue(value);
+      } else {
+        SnackbarService().showError(
+          context,
+          '${AppStrings.cannotOpen} $value',
+        );
+      }
     }
+  }
+
+  bool _canCopyContactValue(ContactType type, String value) {
+    if (value.trim().isEmpty) return false;
+    return type != ContactType.hours && type != ContactType.address;
+  }
+
+  Future<void> _copyContactValue(String value) async {
+    await ExternalLinkLauncher.copyToClipboard(
+      context,
+      value,
+    );
   }
 
   ContactInfo? _getPrimaryInstantSupportContact() {
@@ -275,19 +291,6 @@ class _SupportScreenState extends State<SupportScreen>
     await _handleContactTap(contact.type, contact.value);
   }
 
-  void _showCopyDialog(String value) {
-    AppDialog.input(
-      context: context,
-      title: AppStrings.copyToClipboard,
-      initialValue: value,
-      hintText: value,
-      confirmText: AppStrings.copy,
-    ).then((_) {
-      Clipboard.setData(ClipboardData(text: value));
-      SnackbarService().showSuccess(context, AppStrings.copiedToClipboard);
-    });
-  }
-
   Widget _buildContactCard(
     String title,
     String value,
@@ -297,6 +300,7 @@ class _SupportScreenState extends State<SupportScreen>
     int index = 0,
   }) {
     final canTap = type != ContactType.hours;
+    final canCopy = _canCopyContactValue(type, value);
     final color = iconColor ?? _getIconColorForType(type);
 
     return Container(
@@ -394,12 +398,23 @@ class _SupportScreenState extends State<SupportScreen>
                       ],
                     ),
                   ),
-                  if (canTap && !isOffline)
+                  if (canTap && !isOffline) ...[
+                    if (canCopy)
+                      IconButton(
+                        tooltip: AppStrings.copy,
+                        icon: Icon(
+                          Icons.copy_rounded,
+                          size: ResponsiveValues.iconSizeS(context),
+                          color: AppColors.getTextSecondary(context),
+                        ),
+                        onPressed: () => _copyContactValue(value),
+                      ),
                     Icon(
                       Icons.chevron_right_rounded,
                       size: ResponsiveValues.iconSizeS(context),
                       color: AppColors.getTextSecondary(context),
                     ),
+                  ],
                 ],
               ),
             ),
@@ -665,9 +680,6 @@ class _SupportScreenState extends State<SupportScreen>
                         index: entry.key,
                       ),
                     ),
-              SizedBox(height: ResponsiveValues.spacingXL(context)),
-              _buildSectionHeader(AppStrings.responseTime),
-              _buildResponseTimeCard(),
               SizedBox(height: ResponsiveValues.spacingXXL(context)),
             ]),
           ),
@@ -749,12 +761,6 @@ class _SupportScreenState extends State<SupportScreen>
             delegate: SliverChildListDelegate([
               _buildSectionHeader(AppStrings.quickActions),
               _buildQuickActionGrid(),
-              SizedBox(height: ResponsiveValues.spacingXL(context)),
-              _buildSectionHeader(_settingsProvider.getSupportHoursLabel()),
-              _buildSupportHoursCard(),
-              SizedBox(height: ResponsiveValues.spacingXL(context)),
-              _buildSectionHeader(AppStrings.responseTime),
-              _buildResponseTimeCard(),
               SizedBox(height: ResponsiveValues.spacingXXL(context)),
             ]),
           ),
@@ -788,119 +794,6 @@ class _SupportScreenState extends State<SupportScreen>
         ),
       ],
     );
-  }
-
-  Widget _buildResponseTimeCard() {
-    final responseBadge = _settingsProvider.getSupportResponseBadgeLabel();
-    final responseMessage = _settingsProvider.getSupportResponseMessage();
-
-    return AppCard.glass(
-      child: Padding(
-        padding: ResponsiveValues.cardPadding(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: ResponsiveValues.selectionSheetLeadingSize(context),
-                  height: ResponsiveValues.selectionSheetLeadingSize(context),
-                  decoration: BoxDecoration(
-                    color: AppColors.telegramGreen.withValues(alpha: 0.10),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.timer_rounded,
-                    size: ResponsiveValues.iconSizeL(context),
-                    color: AppColors.telegramGreen,
-                  ),
-                ),
-                SizedBox(width: ResponsiveValues.spacingL(context)),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _settingsProvider.getSupportResponseTitle(),
-                        style: AppTextStyles.titleMedium(
-                          context,
-                        ).copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      SizedBox(height: ResponsiveValues.spacingXXS(context)),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: ResponsiveValues.spacingM(context),
-                          vertical: ResponsiveValues.spacingXS(context),
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.telegramGreen.withValues(alpha: 0.10),
-                          borderRadius: BorderRadius.circular(
-                            ResponsiveValues.radiusFull(context),
-                          ),
-                        ),
-                        child: Text(
-                          responseBadge,
-                          style: AppTextStyles.labelSmall(context).copyWith(
-                            color: AppColors.telegramGreen,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: ResponsiveValues.spacingL(context)),
-            Text(
-              responseMessage,
-              style: AppTextStyles.bodyMedium(
-                context,
-              ).copyWith(color: AppColors.getTextSecondary(context)),
-            ),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(duration: AppThemes.animationMedium);
-  }
-
-  Widget _buildSupportHoursCard() {
-    final hours = _settingsProvider.getOfficeHours();
-
-    return AppCard.glass(
-      child: Padding(
-        padding: ResponsiveValues.cardPadding(context),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.access_time_rounded,
-                  color: AppColors.telegramBlue,
-                  size: ResponsiveValues.iconSizeS(context),
-                ),
-                SizedBox(width: ResponsiveValues.spacingS(context)),
-                Text(
-                  AppStrings.supportHours,
-                  style: AppTextStyles.titleSmall(
-                    context,
-                  ).copyWith(fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-            SizedBox(height: ResponsiveValues.spacingL(context)),
-            Text(
-              hours,
-              style: AppTextStyles.bodyMedium(
-                context,
-              ).copyWith(color: AppColors.getTextSecondary(context)),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(duration: AppThemes.animationMedium);
   }
 
   Widget _buildHeroSection() {

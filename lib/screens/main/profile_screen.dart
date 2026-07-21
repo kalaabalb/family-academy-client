@@ -6,7 +6,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../models/user_model.dart';
@@ -32,6 +31,7 @@ import '../../utils/responsive_values.dart';
 import '../../themes/app_colors.dart';
 import '../../themes/app_text_styles.dart';
 import '../../utils/constants.dart';
+import '../../utils/external_link_launcher.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -998,13 +998,17 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> _openTelegramGroup() async {
-    const username = 's_upport_familyacademy';
     try {
-      const telegramUrl = 'https://t.me/$username';
-      final uri = Uri.parse(telegramUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
+      final telegramUrl = _settingsProvider.getTelegramBotUrl();
+      if (telegramUrl == null || telegramUrl.trim().isEmpty) {
+        SnackbarService().showError(context, AppStrings.cannotOpenTelegram);
+        return;
+      }
+
+      final launched = await ExternalLinkLauncher.launch(
+        Uri.parse(telegramUrl),
+      );
+      if (!launched) {
         SnackbarService().showError(context, AppStrings.cannotOpenTelegram);
       }
     } catch (e) {

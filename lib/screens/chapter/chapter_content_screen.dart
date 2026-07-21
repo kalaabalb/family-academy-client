@@ -1090,6 +1090,27 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
     }
   }
 
+  Future<void> _restoreSystemUiAfterPlayback() async {
+    try {
+      await SystemChrome.setEnabledSystemUIMode(
+        SystemUiMode.edgeToEdge,
+        overlays: SystemUiOverlay.values,
+      );
+      SystemChrome.setSystemUIOverlayStyle(
+        const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarDividerColor: Colors.transparent,
+          systemNavigationBarIconBrightness: Brightness.light,
+        ),
+      );
+    } catch (e) {
+      debugLog('VideoCard', 'Error restoring system UI: $e');
+    }
+  }
+
   Future<void> _setPlaybackOrientation(DeviceOrientation orientation) async {
     try {
       await SystemChrome.setPreferredOrientations([orientation]);
@@ -1397,10 +1418,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
       }
 
       await WakelockPlus.disable();
-      await SystemChrome.setEnabledSystemUIMode(
-        SystemUiMode.edgeToEdge,
-        overlays: [SystemUiOverlay.top],
-      );
+      await _restoreSystemUiAfterPlayback();
       await SystemChrome.setPreferredOrientations(const [
         DeviceOrientation.portraitUp,
         DeviceOrientation.portraitDown,

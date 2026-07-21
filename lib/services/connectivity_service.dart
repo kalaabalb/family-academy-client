@@ -158,7 +158,9 @@ class ConnectivityService {
             'Backend is unreachable; using offline mode so cached data can be used',
           );
           _status = ConnectivityStatus.backendUnavailable;
-          _handleConnectivityChange(false);
+          // Keep the app online if local network connectivity exists so the
+          // client can still attempt API calls and surface a real response.
+          _handleConnectivityChange(true);
         }
       } else {
         _status = ConnectivityStatus.noNetwork;

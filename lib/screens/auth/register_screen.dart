@@ -161,7 +161,17 @@ class _RegisterScreenState extends State<RegisterScreen>
     final connectivityService = context.read<ConnectivityService>();
     await connectivityService.checkConnectivity();
 
-    if (!connectivityService.isOnline) {
+    if (!connectivityService.hasNetworkConnection) {
+      SnackbarService().showNoInternet(context, action: 'register');
+      return;
+    }
+
+    if (connectivityService.isBackendUnavailable) {
+      SnackbarService().showServerUnavailable(context, action: 'register');
+    }
+
+    if (!connectivityService.isOnline &&
+        connectivityService.status != ConnectivityStatus.backendUnavailable) {
       if (connectivityService.hasNetworkConnection) {
         SnackbarService().showServerUnavailable(context, action: 'register');
       } else {

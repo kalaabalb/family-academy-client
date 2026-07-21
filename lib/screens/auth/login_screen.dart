@@ -127,7 +127,17 @@ class _LoginScreenState extends State<LoginScreen>
     final connectivityService = context.read<ConnectivityService>();
     await connectivityService.checkConnectivity();
 
-    if (!connectivityService.isOnline) {
+    if (!connectivityService.hasNetworkConnection) {
+      SnackbarService().showNoInternet(context, action: 'log in');
+      return;
+    }
+
+    if (connectivityService.isBackendUnavailable) {
+      SnackbarService().showServerUnavailable(context, action: 'log in');
+    }
+
+    if (!connectivityService.isOnline &&
+        connectivityService.status != ConnectivityStatus.backendUnavailable) {
       if (connectivityService.hasNetworkConnection) {
         SnackbarService().showServerUnavailable(context, action: 'log in');
       } else {

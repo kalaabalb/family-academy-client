@@ -149,6 +149,7 @@ class AppButton extends StatelessWidget {
 
     final borderRadiusValue =
         borderRadius ?? ResponsiveValues.radiusMedium(context);
+    final minHeight = _getMinHeight(context);
 
     final Widget button = Container(
       width: expanded ? double.infinity : null,
@@ -165,9 +166,13 @@ class AppButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(borderRadiusValue),
             splashColor: _getSplashColor(context),
             highlightColor: Colors.transparent,
-            child: Container(
-              padding: padding ?? _getDefaultPadding(context),
-              child: _buildContent(context, isEnabled, isOfflineDisabled),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: minHeight),
+              child: Container(
+                padding: padding ?? _getDefaultPadding(context),
+                alignment: Alignment.center,
+                child: _buildContent(context, isEnabled, isOfflineDisabled),
+              ),
             ),
           ),
         ),
@@ -450,18 +455,29 @@ class AppButton extends StatelessWidget {
       case ButtonSize.small:
         return EdgeInsets.symmetric(
           horizontal: ResponsiveValues.spacingM(context),
-          vertical: ResponsiveValues.spacingXS(context),
+          vertical: ResponsiveValues.spacingS(context),
         );
       case ButtonSize.medium:
         return EdgeInsets.symmetric(
           horizontal: ResponsiveValues.spacingL(context),
-          vertical: ResponsiveValues.spacingS(context),
+          vertical: ResponsiveValues.spacingM(context),
         );
       case ButtonSize.large:
         return EdgeInsets.symmetric(
           horizontal: ResponsiveValues.spacingXL(context),
-          vertical: ResponsiveValues.spacingM(context),
+          vertical: ResponsiveValues.spacingL(context),
         );
+    }
+  }
+
+  double _getMinHeight(BuildContext context) {
+    switch (size) {
+      case ButtonSize.small:
+        return ResponsiveValues.buttonHeightSmall(context);
+      case ButtonSize.medium:
+        return ResponsiveValues.buttonHeightLarge(context);
+      case ButtonSize.large:
+        return ResponsiveValues.buttonHeightLarge(context) + 4;
     }
   }
 }

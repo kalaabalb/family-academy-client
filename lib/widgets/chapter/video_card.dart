@@ -159,9 +159,7 @@ class _VideoCardState extends State<VideoCard>
               child: Stack(
                 children: [
                   SizedBox(
-                    height: isDesktop
-                        ? 188
-                        : (isTablet ? 214 : 172),
+                    height: isDesktop ? 188 : (isTablet ? 214 : 172),
                     width: double.infinity,
                     child: ClipRRect(
                       borderRadius: const BorderRadius.vertical(
@@ -249,8 +247,8 @@ class _VideoCardState extends State<VideoCard>
                         children: qualities.take(4).map((q) {
                           final isRecommended = q.label ==
                               widget.video.getRecommendedQuality().label;
-                          final isDownloadedQuality =
-                              _isDownloaded && downloadedQualityLabel == q.label;
+                          final isDownloadedQuality = _isDownloaded &&
+                              downloadedQualityLabel == q.label;
                           return Container(
                             margin: const EdgeInsets.only(right: 4),
                             padding: const EdgeInsets.symmetric(
@@ -264,7 +262,8 @@ class _VideoCardState extends State<VideoCard>
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(
                                 color: isDownloadedQuality
-                                    ? AppColors.telegramGreen.withValues(alpha: 0.9)
+                                    ? AppColors.telegramGreen
+                                        .withValues(alpha: 0.9)
                                     : Colors.white.withValues(alpha: 0.18),
                               ),
                             ),
@@ -275,9 +274,10 @@ class _VideoCardState extends State<VideoCard>
                                     ? Colors.white
                                     : Colors.white,
                                 fontSize: 10,
-                                fontWeight: (isRecommended || isDownloadedQuality)
-                                    ? FontWeight.bold
-                                    : FontWeight.w600,
+                                fontWeight:
+                                    (isRecommended || isDownloadedQuality)
+                                        ? FontWeight.bold
+                                        : FontWeight.w600,
                               ),
                             ),
                           );
@@ -321,12 +321,22 @@ class _VideoCardState extends State<VideoCard>
                               const SizedBox(height: 4),
                               SizedBox(
                                 width: 200,
-                                child: LinearProgressIndicator(
-                                  value: _downloadProgress,
-                                  backgroundColor: Colors.white24,
-                                  valueColor: const AlwaysStoppedAnimation(
-                                      Color(0xFF0088CC)),
-                                ),
+                                child: _downloadProgress > 0
+                                    ? LinearProgressIndicator(
+                                        value: _downloadProgress,
+                                        backgroundColor: Colors.white24,
+                                        valueColor:
+                                            const AlwaysStoppedAnimation(
+                                          Color(0xFF0088CC),
+                                        ),
+                                      )
+                                    : const LinearProgressIndicator(
+                                        backgroundColor: Colors.white24,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                          Color(0xFF0088CC),
+                                        ),
+                                      ),
                               ),
                             ],
                           ),
@@ -464,28 +474,28 @@ class _VideoCardState extends State<VideoCard>
                           ? _showCancelDownloadDialog
                           : isScheduled
                               ? () => _showComingSoonMessage(context)
-                          : () async {
-                              if (_isDownloaded) {
-                                _showDeleteDialog();
-                              } else {
-                                final connectivity =
-                                    context.read<ConnectivityService>();
-                                if (!connectivity.isOnline) {
-                                  SnackbarService()
-                                      .showOffline(context, action: 'download');
-                                  return;
-                                }
+                              : () async {
+                                  if (_isDownloaded) {
+                                    _showDeleteDialog();
+                                  } else {
+                                    final connectivity =
+                                        context.read<ConnectivityService>();
+                                    if (!connectivity.isOnline) {
+                                      SnackbarService().showOffline(context,
+                                          action: 'download');
+                                      return;
+                                    }
 
-                                final quality =
-                                    await widget.onShowQualitySelector(
-                                  widget.video,
-                                  forPlayback: false,
-                                );
-                                if (quality != null) {
-                                  widget.onDownload(quality);
-                                }
-                              }
-                            },
+                                    final quality =
+                                        await widget.onShowQualitySelector(
+                                      widget.video,
+                                      forPlayback: false,
+                                    );
+                                    if (quality != null) {
+                                      widget.onDownload(quality);
+                                    }
+                                  }
+                                },
                       style: TextButton.styleFrom(
                         shape: const RoundedRectangleBorder(),
                         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -510,7 +520,11 @@ class _VideoCardState extends State<VideoCard>
                           Text(
                             _isDownloaded
                                 ? 'Remove'
-                                : (_isDownloading ? 'Downloading' : 'Download'),
+                                : (_isDownloading
+                                    ? (_downloadProgress > 0
+                                        ? 'Downloading'
+                                        : 'Starting download')
+                                    : 'Download'),
                             style: AppTextStyles.labelLarge(context).copyWith(
                               fontWeight: FontWeight.w600,
                               color: _isDownloaded

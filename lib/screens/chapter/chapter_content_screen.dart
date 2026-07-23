@@ -687,8 +687,9 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
         final player = _mediaKitPlayer!;
         final currentPosition = player.state.position;
         final wasPlaying = player.state.playing;
+        final mediaUrl = _normalizeVideoUrl(quality.url);
 
-        await player.open(media_kit.Media(quality.url), play: false);
+        await player.open(media_kit.Media(mediaUrl), play: false);
         await player.seek(currentPosition);
         await player.setRate(_currentPlaybackSpeed);
         if (wasPlaying) {
@@ -701,8 +702,8 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
         final wasPlaying = oldVideoController.value.isPlaying;
         final currentPosition = oldVideoController.value.position;
 
-        final newVideoController =
-            VideoPlayerController.networkUrl(Uri.parse(quality.url));
+        final newVideoController = VideoPlayerController.networkUrl(
+            Uri.parse(_normalizeVideoUrl(quality.url)));
         await newVideoController.initialize();
 
         final targetPosition = _clampSeekPosition(
@@ -984,7 +985,8 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
       });
 
       await _mediaKitPlayer!.setVolume(_currentVolume * 100);
-      await _mediaKitPlayer!.open(media_kit.Media(videoUrl));
+      await _mediaKitPlayer!
+          .open(media_kit.Media(_normalizeVideoUrl(videoUrl)));
       await _mediaKitPlayer!.setRate(_currentPlaybackSpeed);
 
       if (!isMounted) return;
@@ -1016,7 +1018,7 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
         controller = VideoPlayerController.file(File(filePath));
         debugLog('VideoCard', 'Playing local file: $filePath');
       } else {
-        final uri = Uri.parse(videoUrl);
+        final uri = Uri.parse(_normalizeVideoUrl(videoUrl));
         controller = VideoPlayerController.networkUrl(uri);
         debugLog('VideoCard', 'Playing network video: ${uri.host}');
       }
@@ -1470,10 +1472,6 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
 
     final Completer<VideoQuality?> completer = Completer();
 
-    if (forPlayback) {
-      await _fetchActualFileSizes(availableQualities);
-    }
-
     await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1632,39 +1630,6 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
     return completer.future;
   }
 
-  Future<void> _fetchActualFileSizes(List<VideoQuality> qualities) async {
-    for (final quality in qualities) {
-      try {
-        final response = await _dio.head(
-          quality.url,
-          options: Options(
-            receiveTimeout: const Duration(seconds: 5),
-            sendTimeout: const Duration(seconds: 5),
-            headers: {'Accept-Encoding': 'identity'},
-          ),
-        );
-
-        final contentLength = response.headers.value('content-length');
-        if (contentLength != null) {
-          final size = int.tryParse(contentLength) ?? 0;
-          if (size > 0) {
-            final index = qualities.indexOf(quality);
-            if (index != -1) {
-              qualities[index] = VideoQuality(
-                label: quality.label,
-                url: quality.url,
-                height: quality.height,
-                estimatedSize: size,
-              );
-            }
-          }
-        }
-      } catch (e) {
-        debugLog('VideoCard', 'Failed to fetch size for ${quality.label}: $e');
-      }
-    }
-  }
-
   String _getQualityDescription(VideoQuality quality) {
     switch (quality.height) {
       case 360:
@@ -1678,6 +1643,17 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
       default:
         return '${quality.height}p ${AppStrings.quality}';
     }
+  }
+
+  String _normalizeVideoUrl(String rawUrl) {
+    var url = rawUrl.trim();
+    if (url.startsWith('https:/') && !url.startsWith('https://')) {
+      url = url.replaceFirst('https:/', 'https://');
+    }
+    if (url.startsWith('http:/') && !url.startsWith('http://')) {
+      url = url.replaceFirst('http:/', 'http://');
+    }
+    return url;
   }
 
   Future<String> _getConnectionType() async {
@@ -2432,7 +2408,8 @@ class _ChapterContentScreenState extends State<ChapterContentScreen>
           final downloadProgress = _downloadProgress[note.id] ?? 0.0;
 
           return Padding(
-            padding: EdgeInsets.only(bottom: ResponsiveValues.spacingL(context)),
+            padding:
+                EdgeInsets.only(bottom: ResponsiveValues.spacingL(context)),
             child: NoteCard(
               note: note,
               chapterId: widget.chapterId,
@@ -2885,11 +2862,34 @@ class NoteDetailScreen extends StatefulWidget {
 
 class _NoteDetailScreenState extends State<NoteDetailScreen> {
   final ScrollController _textScrollController = ScrollController();
+  bool _reportedView = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _reportedView) return;
+      _reportedView = true;
+      _markNoteViewed();
+    });
+  }
 
   @override
   void dispose() {
     _textScrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _markNoteViewed() async {
+    try {
+      await context.read<ProgressProvider>().saveChapterProgress(
+            chapterId: widget.note.chapterId,
+            notesViewed: true,
+            studyTimeMinutes: 0.1,
+          );
+    } catch (e) {
+      debugLog('NoteDetail', 'Failed to mark note viewed: $e');
+    }
   }
 
   Future<void> _openFile(BuildContext context, String filePath) async {
@@ -2939,8 +2939,9 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
         }
 
         final position = _textScrollController.position;
-        final targetOffset = (_textScrollController.offset + event.scrollDelta.dy)
-            .clamp(position.minScrollExtent, position.maxScrollExtent);
+        final targetOffset =
+            (_textScrollController.offset + event.scrollDelta.dy)
+                .clamp(position.minScrollExtent, position.maxScrollExtent);
         if ((targetOffset - _textScrollController.offset).abs() < 0.5) return;
         _textScrollController.jumpTo(targetOffset.toDouble());
       },

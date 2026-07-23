@@ -37,6 +37,7 @@ class ChatbotProvider extends ChangeNotifier
   bool _hasLoadedConversations = false;
   bool _hasLoadedMessages = false;
   bool _hasInitialData = false;
+  int? _loadedMessagesConversationId;
 
   int _apiCallCount = 0;
 
@@ -607,13 +608,22 @@ class ChatbotProvider extends ChangeNotifier
           'Network error. Please check your internet connection.'));
     }
 
+    final isSameConversation = _loadedMessagesConversationId == conversationId;
+
     if (_hasLoadedMessages &&
+        isSameConversation &&
         !forceRefresh &&
         !isManualRefresh &&
         _messages.isNotEmpty) {
       log('✅ Already have messages, returning cached');
       safeNotify();
       return;
+    }
+
+    if (!isSameConversation) {
+      _messages = [];
+      _hasLoadedMessages = false;
+      _currentConversation = null;
     }
 
     _isLoadingMessages = true;
@@ -640,6 +650,7 @@ class ChatbotProvider extends ChangeNotifier
               _messages = messages;
               _hasLoadedMessages = true;
               _hasInitialData = true;
+              _loadedMessagesConversationId = conversationId;
               _isLoadingMessages = false;
 
               _currentConversation = _conversations.firstWhere(
@@ -684,6 +695,7 @@ class ChatbotProvider extends ChangeNotifier
         _messages = response.data ?? [];
         _hasLoadedMessages = true;
         _hasInitialData = true;
+        _loadedMessagesConversationId = conversationId;
 
         _currentConversation = _conversations.firstWhere(
           (c) => c.id == conversationId,
@@ -989,6 +1001,7 @@ class ChatbotProvider extends ChangeNotifier
     _messages.clear();
     _currentConversation = null;
     _hasLoadedMessages = false;
+    _loadedMessagesConversationId = null;
     safeNotify();
     _saveToCache();
   }

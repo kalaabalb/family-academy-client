@@ -42,6 +42,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   late AnimationController _slideController;
   late Animation<Offset> _slideAnimation;
   bool _initialLoadDone = false;
+  bool _providerListenerRegistered = false;
 
   late ChatbotProvider _provider;
   late SettingsProvider _settingsProvider;
@@ -106,10 +107,23 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     _provider = Provider.of<ChatbotProvider>(context);
     _settingsProvider = Provider.of<SettingsProvider>(context);
 
-    _provider.addListener(_onProviderDataChanged);
+    if (!_providerListenerRegistered) {
+      _provider.addListener(_onProviderDataChanged);
+      _providerListenerRegistered = true;
+    }
 
     if (_hasCompletedCurrentViewLoad()) {
       _initialLoadDone = true;
+    }
+
+    _syncConversationFromRoute();
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatbotScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.conversationId != widget.conversationId) {
+      _syncConversationFromRoute();
     }
   }
 
@@ -124,7 +138,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   bool _isViewingConversationMessages() {
-    return widget.conversationId != null || _provider.currentConversation != null;
+    return widget.conversationId != null ||
+        _provider.currentConversation != null;
   }
 
   bool _hasCompletedCurrentViewLoad() {
@@ -139,6 +154,36 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         _provider.isOffline;
   }
 
+  Future<void> _syncConversationFromRoute() async {
+    if (!mounted) return;
+
+    final routeConversationId = widget.conversationId;
+    final currentConversationId = _provider.currentConversation?.id;
+
+    if (routeConversationId == null) {
+      if (_provider.currentConversation != null ||
+          _provider.messages.isNotEmpty) {
+        _provider.clearCurrentConversation();
+        if (mounted) {
+          setState(() => _initialLoadDone = false);
+        }
+      }
+      return;
+    }
+
+    if (currentConversationId == routeConversationId &&
+        _provider.messages.isNotEmpty) {
+      setState(() => _initialLoadDone = true);
+      return;
+    }
+
+    setState(() => _initialLoadDone = false);
+    await _provider.loadMessages(routeConversationId);
+    if (mounted) {
+      setState(() => _initialLoadDone = true);
+    }
+  }
+
   @override
   void dispose() {
     _messageController.dispose();
@@ -146,7 +191,9 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     _focusNode.dispose();
     _slideController.dispose();
     _refreshController.dispose();
-    _provider.removeListener(_onProviderDataChanged);
+    if (_providerListenerRegistered) {
+      _provider.removeListener(_onProviderDataChanged);
+    }
     super.dispose();
   }
 
@@ -332,7 +379,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         Padding(
           padding: EdgeInsets.fromLTRB(
             ResponsiveValues.spacingL(context),
-            MediaQuery.of(context).padding.top + ResponsiveValues.spacingM(context),
+            MediaQuery.of(context).padding.top +
+                ResponsiveValues.spacingM(context),
             ResponsiveValues.spacingL(context),
             ResponsiveValues.spacingS(context),
           ),
@@ -422,7 +470,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                       ),
                 onTap: () {
                   if (conv.id != _provider.currentConversation?.id) {
-                    _provider.loadMessages(conv.id);
                     GoRouter.of(context).go('/chatbot?conv=${conv.id}');
                     setState(() => _initialLoadDone = false);
                   }
@@ -725,8 +772,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                       padding: EdgeInsets.zero,
                       backgroundColor:
                           AppColors.getCard(context).withValues(alpha: 0.62),
-                      borderColor: AppColors.getDivider(context)
-                          .withValues(alpha: 0.28),
+                      borderColor:
+                          AppColors.getDivider(context).withValues(alpha: 0.28),
                       child: _buildConversationList(),
                     ),
                   ),

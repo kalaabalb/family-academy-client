@@ -144,50 +144,7 @@ class NoteCard extends StatelessWidget {
                                 ),
                               ),
                             ),
-                          if (isDownloaded)
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: ResponsiveValues.spacingS(context),
-                                vertical: ResponsiveValues.spacingXXS(context),
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.telegramGreen
-                                    .withValues(alpha: 0.10),
-                                borderRadius: BorderRadius.circular(
-                                  ResponsiveValues.radiusFull(context),
-                                ),
-                              ),
-                              child: Text(
-                                'Saved offline',
-                                style:
-                                    AppTextStyles.labelSmall(context).copyWith(
-                                  color: AppColors.telegramGreen,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            )
-                          else
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: ResponsiveValues.spacingS(context),
-                                vertical: ResponsiveValues.spacingXXS(context),
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.telegramBlue
-                                    .withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(
-                                  ResponsiveValues.radiusFull(context),
-                                ),
-                              ),
-                              child: Text(
-                                'Download for offline',
-                                style:
-                                    AppTextStyles.labelSmall(context).copyWith(
-                                  color: AppColors.telegramBlue,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
+                          const SizedBox.shrink(),
                         ],
                       ),
                     ],
@@ -204,7 +161,8 @@ class NoteCard extends StatelessWidget {
                           width: ResponsiveValues.iconSizeS(context) * 1.2,
                           height: ResponsiveValues.iconSizeS(context) * 1.2,
                           child: CircularProgressIndicator(
-                            value: downloadProgress,
+                            value:
+                                downloadProgress > 0 ? downloadProgress : null,
                             strokeWidth: 2,
                             valueColor: const AlwaysStoppedAnimation<Color>(
                               AppColors.telegramBlue,
@@ -212,7 +170,9 @@ class NoteCard extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '${(downloadProgress * 100).toInt()}%',
+                          downloadProgress > 0
+                              ? '${(downloadProgress * 100).toInt()}%'
+                              : 'Starting...',
                           style: AppTextStyles.labelSmall(context).copyWith(
                             fontSize:
                                 ResponsiveValues.fontLabelSmall(context) * 0.8,
@@ -227,7 +187,7 @@ class NoteCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       AppButton.icon(
-                        icon: Icons.visibility_rounded,
+                        icon: Icons.open_in_new_rounded,
                         onPressed: onTap,
                       ),
                       if (onRemove != null) ...[

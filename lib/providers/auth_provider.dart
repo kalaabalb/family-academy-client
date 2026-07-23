@@ -67,6 +67,30 @@ class AuthProvider extends ChangeNotifier
   Stream<bool> get deviceChangeRequired => _deviceChangeController.stream;
   Stream<String?> get deviceDeactivated => _deviceDeactivatedController.stream;
 
+  Map<String, dynamic>? _asStringMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return null;
+  }
+
+  Map<String, dynamic>? _extractSuccessPayload(dynamic responseData) {
+    final normalizedResponse = _asStringMap(responseData);
+    if (normalizedResponse == null) return null;
+
+    final nestedData = normalizedResponse['data'];
+    if (nestedData is Map) {
+      return Map<String, dynamic>.from(nestedData);
+    }
+
+    if (normalizedResponse['user'] is Map ||
+        normalizedResponse['token'] != null ||
+        normalizedResponse['next_step'] != null) {
+      return normalizedResponse;
+    }
+
+    return null;
+  }
+
   AuthProvider({
     required this.apiService,
     required this.storageService,
@@ -286,9 +310,26 @@ class AuthProvider extends ChangeNotifier
       final response =
           await apiService.studentLogin(username, password, deviceId, fcmToken);
 
-      if (response.success && response.data != null) {
-        final userData = response.data!['user'];
-        final user = User.fromJson(userData as Map<String, dynamic>);
+      final payload =
+          response.success ? _extractSuccessPayload(response.data) : null;
+
+      if (response.success && payload != null) {
+        final userData = _asStringMap(payload['user']);
+        final token = payload['token']?.toString();
+
+        if (userData == null ||
+            userData.isEmpty ||
+            token == null ||
+            token.isEmpty) {
+          return {
+            'success': false,
+            'message':
+                'Unexpected login response from the server. Please update the app and try again.',
+            'requiresDeviceChange': false,
+          };
+        }
+
+        final user = User.fromJson(userData);
 
         final session = UserSession();
         final currentUserId = await session.getCurrentUserId();
@@ -308,9 +349,11 @@ class AuthProvider extends ChangeNotifier
         await deviceService.saveDeviceInfo();
 
         await storageService.saveUser(user);
-        await storageService.saveToken(response.data!['token']);
-        if (response.data!['deviceToken'] != null) {
-          await storageService.saveRefreshToken(response.data!['deviceToken']);
+        await storageService.saveToken(token);
+        final refreshToken = payload['deviceToken']?.toString() ??
+            payload['refreshToken']?.toString();
+        if (refreshToken != null && refreshToken.isNotEmpty) {
+          await storageService.saveRefreshToken(refreshToken);
         }
         await storageService.saveSessionStart();
 
@@ -349,7 +392,8 @@ class AuthProvider extends ChangeNotifier
           'message': 'Login successful',
           'user': user,
           'requiresDeviceChange': false,
-          'next_step': user.schoolId == null ? 'select_school' : 'home',
+          'next_step': payload['next_step']?.toString() ??
+              (user.schoolId == null ? 'select_school' : 'home'),
         };
       } else {
         String? responseAction;
@@ -478,12 +522,25 @@ class AuthProvider extends ChangeNotifier
     try {
       final response =
           await apiService.register(username, password, deviceId, fcmToken);
+      final payload =
+          response.success ? _extractSuccessPayload(response.data) : null;
 
-      if (response.success && response.data != null) {
-        final userData = response.data!['user'];
-        final token = response.data!['token'];
+      if (response.success && payload != null) {
+        final userData = _asStringMap(payload['user']);
+        final token = payload['token']?.toString();
 
-        final user = User.fromJson(userData as Map<String, dynamic>);
+        if (userData == null ||
+            userData.isEmpty ||
+            token == null ||
+            token.isEmpty) {
+          return {
+            'success': false,
+            'message':
+                'Unexpected registration response from the server. Please update the app and try again.'
+          };
+        }
+
+        final user = User.fromJson(userData);
 
         final session = UserSession();
         final currentUserId = await session.getCurrentUserId();
@@ -539,7 +596,8 @@ class AuthProvider extends ChangeNotifier
           'success': true,
           'message': 'Registration successful',
           'user': user,
-          'next_step': user.schoolId == null ? 'select_school' : 'home',
+          'next_step': payload['next_step']?.toString() ??
+              (user.schoolId == null ? 'select_school' : 'home'),
         };
       } else {
         setError(getUserFriendlyErrorMessage(response.message));

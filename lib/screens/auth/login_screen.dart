@@ -112,6 +112,9 @@ class _LoginScreenState extends State<LoginScreen>
   String? _validateUsername(String? value) {
     if (value == null || value.isEmpty) return AppStrings.usernameRequired;
     if (value.length < 3) return AppStrings.usernameMinLength;
+    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
+      return AppStrings.usernameInvalid;
+    }
     return null;
   }
 
@@ -284,7 +287,8 @@ class _LoginScreenState extends State<LoginScreen>
                               enabled: !_isLoading,
                               validator: _validateUsername,
                             ),
-                            SizedBox(height: ResponsiveValues.spacingL(context)),
+                            SizedBox(
+                                height: ResponsiveValues.spacingL(context)),
                             AppTextField.password(
                               controller: _passwordController,
                               label: AppStrings.password,
@@ -301,7 +305,8 @@ class _LoginScreenState extends State<LoginScreen>
                               isLoading: _isLoading,
                               expanded: true,
                             ),
-                            SizedBox(height: ResponsiveValues.spacingL(context)),
+                            SizedBox(
+                                height: ResponsiveValues.spacingL(context)),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [

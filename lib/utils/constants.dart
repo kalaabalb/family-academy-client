@@ -1,16 +1,22 @@
 // lib/utils/constants.dart
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class AppConstants {
   // API Configuration
   static String get apiBaseUrl {
     try {
-      const env = (bool.hasEnvironment('API_BASE_URL'))
-          ? String.fromEnvironment('API_BASE_URL')
-          : null;
-      if (env != null && env.isNotEmpty) return env;
+      final dotenvValue = dotenv.env['API_BASE_URL']?.trim();
+      if (dotenvValue != null && dotenvValue.isNotEmpty) return dotenvValue;
     } catch (_) {}
+
+    const env = (bool.hasEnvironment('API_BASE_URL'))
+        ? String.fromEnvironment('API_BASE_URL')
+        : null;
+    if (env != null && env.isNotEmpty) return env;
+
     return const String.fromEnvironment('API_BASE_URL',
-        defaultValue: 'https://api.familyacademy.et');
+        defaultValue: 'https://family-academy-backend-a12l.onrender.com');
   }
 
   static const int apiTimeoutSeconds = 45;
@@ -156,7 +162,8 @@ class AppConstants {
       'user_${userId}_selected_school_id';
   static String parentLinkStatusKeyFor(String userId) =>
       'user_${userId}_parent_link_status';
-  static String parentTokenKeyFor(String userId) => 'user_${userId}_parent_token';
+  static String parentTokenKeyFor(String userId) =>
+      'user_${userId}_parent_token';
 
   // Sync & Queue Keys
   static const String lastSyncTimeKey = 'last_sync_time';
@@ -382,7 +389,8 @@ class AppStrings {
   static const String networkError =
       'Network error. Please check your connection.';
   static const String timeoutError = 'Request timed out. Please try again.';
-  static const String refreshFailed = 'Could not refresh right now. Please try again.';
+  static const String refreshFailed =
+      'Could not refresh right now. Please try again.';
   static const String categoryNotFound = 'Category not found';
   static const String courseNotFound = 'We could not find this course';
   static const String chapterNotFound = 'We could not find this chapter';
@@ -404,8 +412,7 @@ class AppStrings {
       'Reconnect to load the latest information.';
   static const String categoryDoesNotExist =
       'The category you\'re looking for doesn\'t exist.';
-  static const String noCachedCourses =
-      'Reconnect to load your courses.';
+  static const String noCachedCourses = 'Reconnect to load your courses.';
   static const String coursesWillAppearHere =
       'Courses will appear here when they are ready.';
   static const String categoriesWillAppearHere =
@@ -414,8 +421,7 @@ class AppStrings {
       'Reconnect to load the latest chapters.';
   static const String chaptersWillAppearHere =
       'Chapters will appear here when they are ready.';
-  static const String noCachedExams =
-      'Reconnect to load the latest exams.';
+  static const String noCachedExams = 'Reconnect to load the latest exams.';
   static const String examsWillAppearHere =
       'Exams will appear here when they are ready.';
 
@@ -830,7 +836,8 @@ class AppStrings {
   static const String profileUpdated = 'Profile updated';
   static const String profileUpdatedSuccess = 'Profile updated successfully';
   static const String profileUpdate = 'Profile update';
-  static const String failedToQueueUpdate = 'Could not save this update right now';
+  static const String failedToQueueUpdate =
+      'Could not save this update right now';
   static const String failedToLoadProfile = 'Could not load your profile';
   static const String tryAgainLater = 'Please try again later';
   static const String noCachedProfile =
@@ -887,8 +894,7 @@ class AppStrings {
       'For security, device changes are limited to 2 per month.';
   static const String offlineCompleteDeviceChange =
       'Reconnect to approve this device change.';
-  static const String initializingDeviceInformation =
-      'Checking device details';
+  static const String initializingDeviceInformation = 'Checking device details';
   static const String invalidRequest = 'Request unavailable';
   static const String noDeviceChangeDataProvided =
       'The details for this device approval are missing.';

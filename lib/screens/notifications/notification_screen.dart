@@ -37,6 +37,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   late NotificationProvider _provider;
   late SettingsProvider _settingsProvider;
   bool _providerBound = false;
+  bool _didRequestInitialLoad = false;
 
   @override
   String get screenTitle => AppStrings.notifications;
@@ -160,7 +161,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           }
         }
       });
-
     });
   }
 
@@ -176,11 +176,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
     _handleProviderChanged();
 
-    if (!_provider.isLoaded &&
-        _provider.notifications.isEmpty &&
-        !_provider.isLoading &&
-        !isOffline) {
-      unawaited(_loadInitialNotifications());
+    if (!_didRequestInitialLoad) {
+      _didRequestInitialLoad = true;
+      unawaited(_loadInitialNotifications(forceRefresh: true));
     }
   }
 
@@ -194,7 +192,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     });
   }
 
-  Future<void> _loadInitialNotifications() async {
+  Future<void> _loadInitialNotifications({bool forceRefresh = false}) async {
     if (!isMounted) return;
 
     setState(() {
@@ -202,7 +200,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     });
 
     try {
-      await _provider.loadNotifications();
+      await _provider.loadNotifications(forceRefresh: forceRefresh);
     } finally {
       if (isMounted) {
         setState(() {

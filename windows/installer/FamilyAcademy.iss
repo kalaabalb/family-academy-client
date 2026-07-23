@@ -1,7 +1,7 @@
 #define MyAppName "Family Academy"
 #define MyAppPublisher "Family Academy"
 #define MyAppExeName "familyacademyclient.exe"
-#define MyAppVersion "1.5.0"
+#define MyAppVersion "1.0.0"
 
 [Setup]
 AppId={{D4D3A9D2-4CC1-4FBA-9C5A-7FCF0F33B3C0}

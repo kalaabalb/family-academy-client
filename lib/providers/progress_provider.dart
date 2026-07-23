@@ -442,6 +442,16 @@ class ProgressProvider extends ChangeNotifier
   Map<String, dynamic> _buildDerivedLocalStats(
     Map<String, dynamic> existingStats,
   ) {
+    final weeklyProgress = _userProgress
+        .where(
+          (progress) =>
+              progress.lastAccessed != null &&
+              progress.lastAccessed!.isAfter(
+                DateTime.now().subtract(const Duration(days: 7)),
+              ),
+        )
+        .toList();
+
     final totalAvailableChapters =
         Parsers.parseInt(existingStats['total_available_chapters']);
     final streakCount = Parsers.parseInt(existingStats['streak_count']);
@@ -468,12 +478,34 @@ class ProgressProvider extends ChangeNotifier
         _userProgress.where((progress) => progress.videoProgress >= 90).length;
     final averageVideoProgress = _userProgress.isEmpty
         ? 0.0
-        : _userProgress
-                .fold<int>(0, (sum, progress) => sum + progress.videoProgress) /
+        : _userProgress.fold<int>(
+                0, (sum, progress) => sum + progress.videoProgress) /
             _userProgress.length;
     final accuracyPercentage = totalQuestionsAttempted > 0
         ? (totalQuestionsCorrect / totalQuestionsAttempted) * 100
         : 0.0;
+
+    final weeklyChaptersAttempted = weeklyProgress.length;
+    final weeklyChaptersCompleted =
+        weeklyProgress.where((progress) => progress.completed).length;
+    final weeklyQuestionsAttempted = weeklyProgress.fold<int>(
+      0,
+      (sum, progress) => sum + progress.questionsAttempted,
+    );
+    final weeklyQuestionsCorrect = weeklyProgress.fold<int>(
+      0,
+      (sum, progress) => sum + progress.questionsCorrect,
+    );
+    final weeklyNotesViewed =
+        weeklyProgress.where((progress) => progress.notesViewed).length;
+    final weeklyVideosCompleted =
+        weeklyProgress.where((progress) => progress.videoProgress >= 90).length;
+    final weeklyAverageVideoProgress = weeklyProgress.isEmpty
+        ? 0.0
+        : weeklyProgress.fold<int>(
+                0, (sum, progress) => sum + progress.videoProgress) /
+            weeklyProgress.length;
+
     final existingStudyMinutes =
         Parsers.parseDouble(existingStats['study_time_minutes']);
     final existingStudyHours =
@@ -496,7 +528,8 @@ class ProgressProvider extends ChangeNotifier
           : 0,
       'total_questions_attempted': totalQuestionsAttempted,
       'total_questions_correct': totalQuestionsCorrect,
-      'accuracy_percentage': double.parse(accuracyPercentage.toStringAsFixed(2)),
+      'accuracy_percentage':
+          double.parse(accuracyPercentage.toStringAsFixed(2)),
       'total_notes_viewed': totalNotesViewed,
       'average_video_progress':
           double.parse(averageVideoProgress.toStringAsFixed(2)),
@@ -506,6 +539,23 @@ class ProgressProvider extends ChangeNotifier
       'study_time_hours': double.parse(
         derivedStudyHours.toStringAsFixed(1),
       ),
+      'weekly_chapters_attempted': weeklyChaptersAttempted,
+      'weekly_chapters_completed': weeklyChaptersCompleted,
+      'weekly_completion_percentage': weeklyChaptersAttempted > 0
+          ? ((weeklyChaptersCompleted / weeklyChaptersAttempted) * 100).round()
+          : 0,
+      'weekly_questions_attempted': weeklyQuestionsAttempted,
+      'weekly_questions_correct': weeklyQuestionsCorrect,
+      'weekly_accuracy_percentage': weeklyQuestionsAttempted > 0
+          ? double.parse(
+              ((weeklyQuestionsCorrect / weeklyQuestionsAttempted) * 100)
+                  .toStringAsFixed(2),
+            )
+          : 0.0,
+      'weekly_notes_viewed': weeklyNotesViewed,
+      'weekly_average_video_progress':
+          double.parse(weeklyAverageVideoProgress.toStringAsFixed(2)),
+      'weekly_videos_completed': weeklyVideosCompleted,
       'streak_count': streakCount,
       'last_streak_date': lastStreakDate,
       'exams_taken': examsTaken,
@@ -577,17 +627,24 @@ class ProgressProvider extends ChangeNotifier
 
   Future<void> _syncLocalOverallStats() async {
     final existingStats = _convertToMapString(_overallStats['stats']);
+    final weekAgo = DateTime.now().subtract(const Duration(days: 7));
+    final weeklyProgress = _userProgress
+        .where(
+          (progress) =>
+              progress.lastAccessed != null &&
+              progress.lastAccessed!.isAfter(weekAgo),
+        )
+        .toList();
 
     _overallStats = {
       ..._overallStats,
       'stats': _buildDerivedLocalStats(existingStats),
     };
 
-    final sortedProgress = _userProgress.toList()
-      ..sort((a, b) =>
-          (b.lastAccessed ?? DateTime.fromMillisecondsSinceEpoch(0))
-              .compareTo(
-                  a.lastAccessed ?? DateTime.fromMillisecondsSinceEpoch(0)));
+    final sortedProgress = weeklyProgress.toList()
+      ..sort((a, b) => (b.lastAccessed ??
+              DateTime.fromMillisecondsSinceEpoch(0))
+          .compareTo(a.lastAccessed ?? DateTime.fromMillisecondsSinceEpoch(0)));
     final recentActivityMaps = sortedProgress
         .take(10)
         .map(
@@ -919,6 +976,15 @@ class ProgressProvider extends ChangeNotifier
         'videos_completed': 0,
         'study_time_minutes': 0.0,
         'study_time_hours': 0.0,
+        'weekly_chapters_attempted': 0,
+        'weekly_chapters_completed': 0,
+        'weekly_completion_percentage': 0,
+        'weekly_questions_attempted': 0,
+        'weekly_questions_correct': 0,
+        'weekly_accuracy_percentage': 0.0,
+        'weekly_notes_viewed': 0,
+        'weekly_average_video_progress': 0.0,
+        'weekly_videos_completed': 0,
         'streak_count': 0,
         'last_streak_date': null,
         'exams_taken': 0,

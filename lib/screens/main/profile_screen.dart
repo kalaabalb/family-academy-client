@@ -1122,7 +1122,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            '${AppStrings.version} 1.5.0+1',
+            '${AppStrings.version} ${AppConstants.appVersion}',
             style: AppTextStyles.titleMedium(context)
                 .copyWith(fontWeight: FontWeight.w700),
           ),

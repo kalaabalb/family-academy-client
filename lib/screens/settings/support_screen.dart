@@ -36,8 +36,9 @@ class _SupportScreenState extends State<SupportScreen>
   bool _didInitialize = false;
 
   @override
-  String get screenTitle =>
-      _didInitialize ? _settingsProvider.getSupportScreenTitle() : AppStrings.support;
+  String get screenTitle => _didInitialize
+      ? _settingsProvider.getSupportScreenTitle()
+      : AppStrings.support;
 
   @override
   String? get screenSubtitle => isRefreshing
@@ -82,9 +83,8 @@ class _SupportScreenState extends State<SupportScreen>
       duration: 1.seconds,
     )..repeat(reverse: true);
 
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     _refreshControllers.addAll([
-      RefreshController(),
       RefreshController(),
       RefreshController(),
     ]);
@@ -261,36 +261,6 @@ class _SupportScreenState extends State<SupportScreen>
     );
   }
 
-  ContactInfo? _getPrimaryInstantSupportContact() {
-    final contacts = _settingsProvider.getContactInfoList();
-    for (final preferredType in const [
-      ContactType.whatsapp,
-      ContactType.telegram,
-      ContactType.email,
-      ContactType.phone,
-    ]) {
-      try {
-        return contacts.firstWhere((contact) => contact.type == preferredType);
-      } catch (_) {
-        continue;
-      }
-    }
-    return null;
-  }
-
-  Future<void> _handleQuickSupportAction() async {
-    final contact = _getPrimaryInstantSupportContact();
-    if (contact == null) {
-      SnackbarService().showInfo(
-        context,
-        'Your administrator has not configured a direct support contact yet.',
-      );
-      return;
-    }
-
-    await _handleContactTap(contact.type, contact.value);
-  }
-
   Widget _buildContactCard(
     String title,
     String value,
@@ -300,7 +270,6 @@ class _SupportScreenState extends State<SupportScreen>
     int index = 0,
   }) {
     final canTap = type != ContactType.hours;
-    final canCopy = _canCopyContactValue(type, value);
     final color = iconColor ?? _getIconColorForType(type);
 
     return Container(
@@ -375,9 +344,7 @@ class _SupportScreenState extends State<SupportScreen>
                               Text(
                                 type == ContactType.address
                                     ? AppStrings.viewOnMap
-                                    : type == ContactType.other
-                                        ? AppStrings.tapToCopy
-                                        : AppStrings.tapToContact,
+                                    : AppStrings.tapToContact,
                                 style: AppTextStyles.caption(
                                   context,
                                 ).copyWith(color: color),
@@ -386,9 +353,7 @@ class _SupportScreenState extends State<SupportScreen>
                                 width: ResponsiveValues.spacingXXS(context),
                               ),
                               Icon(
-                                type == ContactType.other
-                                    ? Icons.copy_rounded
-                                    : Icons.open_in_new_rounded,
+                                Icons.open_in_new_rounded,
                                 size: ResponsiveValues.iconSizeXXS(context),
                                 color: color,
                               ),
@@ -399,16 +364,6 @@ class _SupportScreenState extends State<SupportScreen>
                     ),
                   ),
                   if (canTap && !isOffline) ...[
-                    if (canCopy)
-                      IconButton(
-                        tooltip: AppStrings.copy,
-                        icon: Icon(
-                          Icons.copy_rounded,
-                          size: ResponsiveValues.iconSizeS(context),
-                          color: AppColors.getTextSecondary(context),
-                        ),
-                        onPressed: () => _copyContactValue(value),
-                      ),
                     Icon(
                       Icons.chevron_right_rounded,
                       size: ResponsiveValues.iconSizeS(context),
@@ -427,93 +382,6 @@ class _SupportScreenState extends State<SupportScreen>
         .slideX(
           begin: 0.1,
           end: 0,
-          duration: AppThemes.animationMedium,
-          delay: (index * 50).ms,
-        );
-  }
-
-  Widget _buildQuickActionCard(
-    String title,
-    String subtitle,
-    IconData icon,
-    VoidCallback onTap,
-    Color color, {
-    int index = 0,
-  }) {
-    return AppCard.glass(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: isOffline ? null : onTap,
-          borderRadius: BorderRadius.circular(
-            ResponsiveValues.radiusXLarge(context),
-          ),
-          splashColor: color.withValues(alpha: 0.1),
-          highlightColor: Colors.transparent,
-          child: Container(
-            padding: ResponsiveValues.cardPadding(context),
-            height: 140,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: ResponsiveValues.supportActionIconContainerSize(
-                    context,
-                  ),
-                  height: ResponsiveValues.supportActionIconContainerSize(
-                    context,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        color.withValues(alpha: 0.2),
-                        color.withValues(alpha: 0.05),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(
-                      ResponsiveValues.radiusMedium(context),
-                    ),
-                    border: Border.all(color: color, width: 1.5),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      icon,
-                      size: ResponsiveValues.iconSizeS(context),
-                      color: isOffline ? AppColors.warning : color,
-                    ),
-                  ),
-                ),
-                SizedBox(height: ResponsiveValues.spacingS(context)),
-                Text(
-                  title,
-                  style: AppTextStyles.titleSmall(
-                    context,
-                  ).copyWith(fontWeight: FontWeight.w600),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: ResponsiveValues.spacingXXS(context) / 2),
-                Text(
-                  subtitle,
-                  style: AppTextStyles.caption(
-                    context,
-                  ).copyWith(color: AppColors.getTextSecondary(context)),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    )
-        .animate()
-        .fadeIn(duration: AppThemes.animationMedium, delay: (index * 50).ms)
-        .scale(
-          begin: const Offset(0.95, 0.95),
-          end: const Offset(1, 1),
           duration: AppThemes.animationMedium,
           delay: (index * 50).ms,
         );
@@ -748,54 +616,6 @@ class _SupportScreenState extends State<SupportScreen>
     );
   }
 
-  Widget _buildActionsTab() {
-    return CustomScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      slivers: [
-        SliverPadding(
-          padding: EdgeInsets.symmetric(
-            horizontal: ResponsiveValues.spacingL(context),
-            vertical: ResponsiveValues.spacingL(context),
-          ),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate([
-              _buildSectionHeader(AppStrings.quickActions),
-              _buildQuickActionGrid(),
-              SizedBox(height: ResponsiveValues.spacingXXL(context)),
-            ]),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickActionGrid() {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      crossAxisSpacing: ResponsiveValues.gridSpacing(context),
-      mainAxisSpacing: ResponsiveValues.gridRunSpacing(context),
-      children: [
-        _buildQuickActionCard(
-          _settingsProvider.getSupportQuickActionTitle(),
-          _settingsProvider.getSupportQuickActionDescription(),
-          Icons.chat_rounded,
-          _handleQuickSupportAction,
-          AppColors.telegramGreen,
-        ),
-        _buildQuickActionCard(
-          AppStrings.faq,
-          AppStrings.frequentlyAskedQuestions,
-          Icons.help_rounded,
-          () => _tabController.animateTo(1),
-          AppColors.telegramYellow,
-          index: 1,
-        ),
-      ],
-    );
-  }
-
   Widget _buildHeroSection() {
     return AppCard.glass(
       child: Container(
@@ -893,7 +713,6 @@ class _SupportScreenState extends State<SupportScreen>
               tabs: const [
                 Tab(text: AppStrings.contact),
                 Tab(text: AppStrings.faq),
-                Tab(text: AppStrings.actions),
               ],
             ),
           ),
@@ -908,7 +727,6 @@ class _SupportScreenState extends State<SupportScreen>
               children: [
                 _buildContactTab(),
                 _buildFAQTab(),
-                _buildActionsTab(),
               ],
             ),
           ),

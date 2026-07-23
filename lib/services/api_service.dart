@@ -46,7 +46,10 @@ class _HttpJsonResult {
 const bool _verboseApiTracing = false;
 
 void debugPrint(String? message, {int? wrapWidth}) {
-  if (!kDebugMode || !_verboseApiTracing || message == null || message.isEmpty) {
+  if (!kDebugMode ||
+      !_verboseApiTracing ||
+      message == null ||
+      message.isEmpty) {
     return;
   }
 
@@ -599,7 +602,8 @@ class ApiService {
     required String requestPath,
   }) {
     if (rawData == null) {
-      debugLog('ApiService', 'Plain JSON decode for $requestPath got null body');
+      debugLog(
+          'ApiService', 'Plain JSON decode for $requestPath got null body');
       return null;
     }
 
@@ -671,6 +675,12 @@ class ApiService {
     return fallback;
   }
 
+  Map<String, dynamic>? _asStringMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return null;
+  }
+
   // ===== AUTH ENDPOINTS =====
   Future<ApiResponse<Map<String, dynamic>>> register(String username,
       String password, String deviceId, String? fcmToken) async {
@@ -693,11 +703,22 @@ class ApiService {
       );
 
       if (response.data is Map && response.data['success'] == true) {
-        final data = response.data['data'];
+        final normalizedResponse =
+            Map<String, dynamic>.from(response.data as Map);
+        final data = _asStringMap(normalizedResponse['data']) ??
+            _asStringMap(normalizedResponse);
+        if (data == null || data['user'] == null || data['token'] == null) {
+          return ApiResponse<Map<String, dynamic>>(
+            success: false,
+            message:
+                'Unexpected registration response from the server. Please try again.',
+          );
+        }
+
         return ApiResponse<Map<String, dynamic>>(
           success: true,
-          message: response.data['message'] ?? 'Registration successful',
-          data: data is Map ? Map<String, dynamic>.from(data) : {},
+          message: normalizedResponse['message'] ?? 'Registration successful',
+          data: data,
         );
       } else {
         return ApiResponse<Map<String, dynamic>>(
@@ -748,23 +769,27 @@ class ApiService {
       );
 
       if (response.data is Map && response.data['success'] == true) {
-        final data = response.data['data'];
-        if (data is! Map<String, dynamic>) {
+        final normalizedResponse =
+            Map<String, dynamic>.from(response.data as Map);
+        final data = _asStringMap(normalizedResponse['data']) ??
+            _asStringMap(normalizedResponse);
+        if (data == null || data['user'] == null || data['token'] == null) {
           return ApiResponse<Map<String, dynamic>>(
             success: false,
-            message: 'Invalid response format',
+            message:
+                'Unexpected login response from the server. Please try again.',
           );
         }
 
-        await _writeToken(data['token']);
+        await _writeToken(data['token'].toString());
         if (data['deviceToken'] != null) {
-          await _writeRefreshToken(data['deviceToken']);
+          await _writeRefreshToken(data['deviceToken'].toString());
         }
 
         return ApiResponse<Map<String, dynamic>>(
           success: true,
-          message: response.data['message'] ?? 'Login successful',
-          data: Map<String, dynamic>.from(data),
+          message: normalizedResponse['message'] ?? 'Login successful',
+          data: data,
         );
       } else {
         Map<String, dynamic>? errorPayload;
@@ -1628,8 +1653,7 @@ class ApiService {
   Future<ApiResponse<Map<String, dynamic>>> submitExam(
       int examResultId, List<Map<String, dynamic>> answers) async {
     try {
-      final response = await _dio.post(
-          '$_apiPrefix/exams/submit/$examResultId',
+      final response = await _dio.post('$_apiPrefix/exams/submit/$examResultId',
           data: {'answers': answers});
       return ApiResponse.fromJson(
           response.data, (data) => data as Map<String, dynamic>);
@@ -1701,9 +1725,8 @@ class ApiService {
         final data = response.data['data'] ?? {};
         if (data is Map) {
           final mapData = Map<String, dynamic>.from(data);
-          final hasSubscription =
-              mapData['has_subscription'] == true ||
-                  mapData['has_active_subscription'] == true;
+          final hasSubscription = mapData['has_subscription'] == true ||
+              mapData['has_active_subscription'] == true;
           final subscription = mapData['subscription'];
 
           if (subscription is Map) {
@@ -2023,7 +2046,8 @@ class ApiService {
 
   Future<ApiResponse<void>> deleteAllNotifications() async {
     try {
-      final response = await _dio.delete('$_apiPrefix/notifications/delete-all');
+      final response =
+          await _dio.delete('$_apiPrefix/notifications/delete-all');
       return ApiResponse(success: true, message: response.data['message']);
     } on DioException catch (e) {
       return ApiResponse(
@@ -2287,7 +2311,10 @@ class ApiService {
   }
 
   Future<ApiResponse<Map<String, dynamic>>> updateMyProfile(
-      {String? email, String? phone, String? profileImage, int? schoolId}) async {
+      {String? email,
+      String? phone,
+      String? profileImage,
+      int? schoolId}) async {
     try {
       final Map<String, dynamic> data = {};
       if (email != null && email.isNotEmpty) data['email'] = email;

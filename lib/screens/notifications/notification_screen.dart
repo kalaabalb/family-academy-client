@@ -998,7 +998,17 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       return buildLoadingShimmer();
     }
 
-    final shouldShowEmpty = _provider.isLoaded && visibleNotifications == 0;
+    if (visibleNotifications == 0 && _provider.errorMessage != null) {
+      return Center(
+        child: buildErrorWidget(
+          _provider.errorMessage.toString(),
+          onRetry: onRefresh,
+        ),
+      );
+    }
+
+    final shouldShowEmpty = visibleNotifications == 0 &&
+        (_provider.isLoaded || !_provider.isLoading);
 
     if (shouldShowEmpty) {
       return Center(

@@ -969,7 +969,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       _buildMenuCard(
         icon: Icons.feedback_outlined,
         title: AppStrings.feedback,
-        onTap: _openTelegramGroup,
+        onTap: _openFeedbackGroup,
         iconColor: AppColors.telegramBlue,
       ),
       _buildMenuCard(
@@ -999,9 +999,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Future<void> _openTelegramGroup() async {
+  Future<void> _openFeedbackGroup() async {
     try {
-      final telegramUrl = _settingsProvider.getTelegramBotUrl();
+      final telegramUrl = _settingsProvider.getFeedbackTelegramUrl() ??
+          _settingsProvider.getTelegramBotUrl();
       if (telegramUrl == null || telegramUrl.trim().isEmpty) {
         SnackbarService().showError(context, AppStrings.cannotOpenTelegram);
         return;

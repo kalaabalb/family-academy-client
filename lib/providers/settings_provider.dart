@@ -69,7 +69,8 @@ class SettingsProvider extends ChangeNotifier
     required ConnectivityService connectivityService,
     required this.hiveService,
   })  : _connectivityService = connectivityService,
-        _settingsUpdateController = StreamController<List<Setting>>.broadcast() {
+        _settingsUpdateController =
+            StreamController<List<Setting>>.broadcast() {
     log('SettingsProvider constructor called');
     initializeOfflineAware(
       connectivity: connectivityService,
@@ -303,7 +304,8 @@ class SettingsProvider extends ChangeNotifier
 
   String getBillingCyclePlanLabel(String billingCycle) {
     final normalizedCycle = billingCycle.trim().toLowerCase();
-    final configuredLabel = getSettingValue('billing_cycle_${normalizedCycle}_label');
+    final configuredLabel =
+        getSettingValue('billing_cycle_${normalizedCycle}_label');
     if (configuredLabel != null && configuredLabel.trim().isNotEmpty) {
       return configuredLabel.trim();
     }
@@ -1366,7 +1368,8 @@ class SettingsProvider extends ChangeNotifier
     if (notification != null && notification.isNotEmpty) {
       notes.add(notification);
     } else {
-      notes.add('You will receive a notification once your payment is verified.');
+      notes.add(
+          'You will receive a notification once your payment is verified.');
     }
 
     return notes;
@@ -1923,7 +1926,8 @@ class SettingsProvider extends ChangeNotifier
     return [
       {
         'question': 'What payment methods are accepted?',
-        'answer': paymentMethodsAnswer != null && paymentMethodsAnswer.isNotEmpty
+        'answer': paymentMethodsAnswer != null &&
+                paymentMethodsAnswer.isNotEmpty
             ? paymentMethodsAnswer
             : 'We accept the payment methods currently enabled by the administrator. Check the Payment screen for the latest options.',
       },
@@ -2311,7 +2315,8 @@ class SettingsProvider extends ChangeNotifier
   }
 
   String getAccessBannerPaymentRejectedMessage(String reason) {
-    final configured = getSettingValue('access_banner_payment_rejected_message');
+    final configured =
+        getSettingValue('access_banner_payment_rejected_message');
     final template = (configured != null && configured.trim().isNotEmpty)
         ? configured.trim()
         : 'Reason: {reason}';
@@ -2463,7 +2468,8 @@ class SettingsProvider extends ChangeNotifier
   }
 
   String getProgressAverageVideoProgressSubtitle() {
-    final configured = getSettingValue('progress_average_video_progress_subtitle');
+    final configured =
+        getSettingValue('progress_average_video_progress_subtitle');
     if (configured != null && configured.trim().isNotEmpty) {
       return configured.trim();
     }
@@ -2631,8 +2637,7 @@ class SettingsProvider extends ChangeNotifier
   }
 
   String getNotificationsCategoryFallbackLabel() {
-    final configured =
-        getSettingValue('notifications_category_fallback_label');
+    final configured = getSettingValue('notifications_category_fallback_label');
     if (configured != null && configured.trim().isNotEmpty) {
       return configured.trim();
     }
@@ -2776,28 +2781,58 @@ class SettingsProvider extends ChangeNotifier
     return 'Once linked, parents can open the bot anytime to view a polished child snapshot, recent activity, exams, and payment access updates.';
   }
 
-  // ===== TELEGRAM BOT URL =====
-  String? getTelegramBotUrl() {
-    const preferredKeys = [
-      'parent_telegram_bot_url',
-      'telegram_bot_url',
-      'support_telegram_bot_url',
-      'support_telegram_url',
-      'telegram_url',
-      'telegram_bot_username',
-      'support_telegram_username',
-    ];
-
-    for (final key in preferredKeys) {
+  // ===== TELEGRAM URL HELPERS =====
+  String? _getTelegramUrlFromKeys(List<String> keys) {
+    for (final key in keys) {
       final value = getSettingValue(key);
       if (value != null && value.trim().isNotEmpty) {
         return _normalizeTelegramUrl(value);
       }
     }
+    return null;
+  }
+
+  String? getFeedbackTelegramUrl() {
+    return _getTelegramUrlFromKeys([
+      'support_feedback_telegram_url',
+      'feedback_telegram_url',
+      'feedback_url',
+      'support_feedback_url',
+    ]);
+  }
+
+  String? getSupportTelegramUrl() {
+    return _getTelegramUrlFromKeys([
+      'support_telegram_url',
+      'support_direct_telegram_url',
+      'support_direct_url',
+      'support_telegram_bot_url',
+    ]);
+  }
+
+  String? getTelegramBotUrl() {
+    const preferredKeys = [
+      'parent_telegram_bot_url',
+      'telegram_bot_url',
+      'telegram_url',
+      'telegram_bot_username',
+      'support_telegram_username',
+    ];
+
+    final preferredValue = _getTelegramUrlFromKeys(preferredKeys);
+    if (preferredValue != null) {
+      return preferredValue;
+    }
+
+    final supportValue = getSupportTelegramUrl();
+    if (supportValue != null) {
+      return supportValue;
+    }
 
     final candidateCategories = ['parent_link', 'telegram', 'contact'];
     for (final category in candidateCategories) {
-      final categorySettings = _settingsByCategory[category] ?? const <Setting>[];
+      final categorySettings =
+          _settingsByCategory[category] ?? const <Setting>[];
       for (final setting in categorySettings) {
         final value = setting.settingValue;
         if (value == null || value.trim().isEmpty) {

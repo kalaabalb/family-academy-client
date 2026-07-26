@@ -260,6 +260,15 @@ class _SupportScreenState extends State<SupportScreen>
     );
   }
 
+  ContactInfo? _findContactBySettingKeys(List<String> keys) {
+    for (final contact in _settingsProvider.getContactInfoList()) {
+      if (keys.contains(contact.settingKey)) {
+        return contact;
+      }
+    }
+    return null;
+  }
+
   Widget _buildContactCard(
     String title,
     String value,
@@ -274,7 +283,7 @@ class _SupportScreenState extends State<SupportScreen>
     return Container(
       margin: EdgeInsets.only(bottom: ResponsiveValues.spacingL(context)),
       child: AppCard.contact(
-        accentColor: color,
+        accentColor: color.withValues(alpha: 0.4),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
@@ -284,7 +293,7 @@ class _SupportScreenState extends State<SupportScreen>
             borderRadius: BorderRadius.circular(
               ResponsiveValues.radiusXLarge(context),
             ),
-            splashColor: color.withValues(alpha: 0.1),
+            splashColor: color.withValues(alpha: 0.08),
             highlightColor: Colors.transparent,
             child: Padding(
               padding: ResponsiveValues.cardPadding(context),
@@ -298,12 +307,13 @@ class _SupportScreenState extends State<SupportScreen>
                       context,
                     ),
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.08),
+                      color:
+                          AppColors.getSurface(context).withValues(alpha: 0.88),
                       borderRadius: BorderRadius.circular(
                         ResponsiveValues.radiusMedium(context),
                       ),
                       border: Border.all(
-                        color: color.withValues(alpha: 0.18),
+                        color: color.withValues(alpha: 0.22),
                       ),
                     ),
                     child: Center(
@@ -413,13 +423,11 @@ class _SupportScreenState extends State<SupportScreen>
               width: ResponsiveValues.iconSizeL(context),
               height: ResponsiveValues.iconSizeL(context),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.telegramBlue.withValues(alpha: 0.2),
-                    AppColors.telegramPurple.withValues(alpha: 0.1),
-                  ],
-                ),
+                color: AppColors.getSurface(context).withValues(alpha: 0.9),
                 shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.telegramBlue.withValues(alpha: 0.18),
+                ),
               ),
               child: Icon(
                 Icons.help_rounded,
@@ -491,7 +499,32 @@ class _SupportScreenState extends State<SupportScreen>
   }
 
   Widget _buildContactTab() {
-    final contactInfo = _settingsProvider.getContactInfoList();
+    final allContacts = _settingsProvider.getContactInfoList();
+    final feedbackContact = _findContactBySettingKeys(const [
+      'support_feedback_telegram_url',
+      'feedback_telegram_url',
+      'feedback_url',
+      'support_feedback_url',
+    ]);
+    final supportContact = _findContactBySettingKeys(const [
+      'support_telegram_url',
+      'support_direct_telegram_url',
+      'support_direct_url',
+      'support_telegram_bot_url',
+    ]);
+    final contactInfo = allContacts
+        .where((contact) =>
+            contact.settingKey != 'support_feedback_telegram_url' &&
+            contact.settingKey != 'feedback_telegram_url' &&
+            contact.settingKey != 'feedback_url' &&
+            contact.settingKey != 'support_feedback_url' &&
+            contact.settingKey != 'support_telegram_url' &&
+            contact.settingKey != 'support_direct_telegram_url' &&
+            contact.settingKey != 'support_direct_url' &&
+            contact.settingKey != 'support_telegram_bot_url')
+        .toList();
+    final hasFeaturedCards = feedbackContact != null || supportContact != null;
+    final hasAnyCards = hasFeaturedCards || contactInfo.isNotEmpty;
 
     return CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -504,7 +537,29 @@ class _SupportScreenState extends State<SupportScreen>
           sliver: SliverList(
             delegate: SliverChildListDelegate([
               _buildSectionHeader(AppStrings.contactInformation),
-              if (contactInfo.isEmpty)
+              if (hasFeaturedCards) ...[
+                _buildSectionHeader('Telegram channels'),
+                if (feedbackContact != null)
+                  _buildContactCard(
+                    feedbackContact.title,
+                    feedbackContact.value,
+                    feedbackContact.icon,
+                    feedbackContact.type,
+                    iconColor: AppColors.telegramBlue,
+                    index: 0,
+                  ),
+                if (supportContact != null)
+                  _buildContactCard(
+                    supportContact.title,
+                    supportContact.value,
+                    supportContact.icon,
+                    supportContact.type,
+                    iconColor: AppColors.telegramBlue,
+                    index: 1,
+                  ),
+                SizedBox(height: ResponsiveValues.spacingM(context)),
+              ],
+              if (!hasAnyCards)
                 AppCard.glass(
                   child: Padding(
                     padding: ResponsiveValues.dialogPadding(context),

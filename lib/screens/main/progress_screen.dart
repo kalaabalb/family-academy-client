@@ -72,7 +72,8 @@ class _ProgressScreenState extends State<ProgressScreen>
       _progressProvider.hasLoadedOverall || _progressProvider.hasLoadedProgress;
 
   @override
-  dynamic get errorMessage => null;
+  dynamic get errorMessage =>
+      _providersBound ? _progressProvider.errorMessage : null;
 
   @override
   ShimmerType get shimmerType => ShimmerType.progressScreen;

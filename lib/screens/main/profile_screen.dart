@@ -1093,63 +1093,96 @@ class _ProfileScreenState extends State<ProfileScreen>
         _cachedUser ?? _userProvider.currentUser ?? authProvider.currentUser;
     final schoolName = _schoolName?.trim().isNotEmpty == true
         ? _schoolName!
-        : (user?.schoolId != null
-            ? 'School #${user!.schoolId}'
-            : 'Not selected yet');
-    final accountStatus = user?.accountStatus.toLowerCase() ?? 'unknown';
-    final accountSummary = accountStatus == 'active'
-        ? 'Active learning access'
-        : accountStatus == 'expired'
-            ? 'Needs renewal'
-            : accountStatus == 'unpaid'
-                ? 'Payment pending'
-                : accountStatus;
-    final notificationSummary = _notificationsEnabled ? 'On' : 'Off';
-    final parentSummary =
-        user?.hasParentLinked == true ? 'Linked' : 'Not linked';
+        : (user?.schoolId != null ? 'School #${user!.schoolId}' : 'Not set');
     final deviceLabels = <String>[
-      if (user?.primaryDeviceId?.isNotEmpty == true) 'Primary device',
-      if (user?.tvDeviceId?.isNotEmpty == true) 'TV device',
+      if (user?.primaryDeviceId?.isNotEmpty == true) 'Phone',
+      if (user?.tvDeviceId?.isNotEmpty == true) 'TV',
     ];
-    final deviceSummary = user == null
-        ? 'Unknown'
-        : (deviceLabels.isEmpty
-            ? 'No device linked yet'
-            : deviceLabels.join(' • '));
+    final deviceSummary =
+        deviceLabels.isEmpty ? 'No linked devices' : deviceLabels.join(' • ');
 
     await AppDialog.show(
       context: context,
-      title: AppStrings.familyAcademy,
+      title: 'About Family Academy',
       message: '',
       customContent: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            '${AppStrings.version} ${AppConstants.appVersion}',
-            style: AppTextStyles.titleMedium(context)
-                .copyWith(fontWeight: FontWeight.w700),
-          ),
-          SizedBox(height: ResponsiveValues.spacingS(context)),
-          Text(
-            'Family Academy is built to follow the learner across phone, desktop, TV, and the parent view.',
-            style: AppTextStyles.bodyMedium(context).copyWith(
-              color: AppColors.getTextSecondary(context),
+          Container(
+            width: double.infinity,
+            padding: ResponsiveValues.cardPadding(context),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.telegramBlue.withValues(alpha: 0.14),
+                  AppColors.telegramPurple.withValues(alpha: 0.08),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(
+                ResponsiveValues.radiusLarge(context),
+              ),
+              border: Border.all(
+                color: AppColors.getDivider(context).withValues(alpha: 0.10),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Family Academy',
+                  style: AppTextStyles.titleLarge(context).copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: ResponsiveValues.spacingXXS(context)),
+                Text(
+                  'A learning platform for students, parents, teachers, and TV-based study rooms.',
+                  style: AppTextStyles.bodyMedium(context).copyWith(
+                    color: AppColors.getTextSecondary(context),
+                    height: 1.45,
+                  ),
+                ),
+                SizedBox(height: ResponsiveValues.spacingM(context)),
+                Wrap(
+                  spacing: ResponsiveValues.spacingS(context),
+                  runSpacing: ResponsiveValues.spacingS(context),
+                  children: [
+                    _buildAppInfoBadge('Mobile learning'),
+                    _buildAppInfoBadge('Desktop access'),
+                    _buildAppInfoBadge('TV support'),
+                    _buildAppInfoBadge('Parent controls'),
+                  ],
+                ),
+              ],
             ),
           ),
           SizedBox(height: ResponsiveValues.spacingL(context)),
           Text(
-            'Your account',
-            style: AppTextStyles.titleSmall(context)
-                .copyWith(fontWeight: FontWeight.w700),
+            'Product snapshot',
+            style: AppTextStyles.titleSmall(context).copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
           SizedBox(height: ResponsiveValues.spacingS(context)),
-          _buildInfoRow(context, 'Profile name', user?.username ?? 'Unknown'),
-          _buildInfoRow(context, 'School', schoolName),
-          _buildInfoRow(context, 'Access', accountSummary),
-          _buildInfoRow(context, 'Parent link', parentSummary),
-          _buildInfoRow(context, 'Devices', deviceSummary),
-          _buildInfoRow(context, 'Notifications', notificationSummary),
+          _buildAppInfoRow(context, 'Version', AppConstants.appVersion),
+          _buildAppInfoRow(
+            context,
+            'Platform support',
+            'Android, iOS, Web, Windows, macOS, Linux, TV',
+          ),
+          _buildAppInfoRow(
+            context,
+            'Learning scope',
+            'Notes, videos, quizzes, exams, progress, and chatbot support',
+          ),
+          _buildAppInfoRow(context, 'School', schoolName),
+          _buildAppInfoRow(context, 'Linked devices', deviceSummary),
+          _buildAppInfoRow(
+            context,
+            'Parent access',
+            user?.hasParentLinked == true ? 'Enabled' : 'Not linked',
+          ),
           SizedBox(height: ResponsiveValues.spacingL(context)),
           Text(
             'Need help? Open Support for Telegram, email, WhatsApp, and FAQs.',
@@ -1163,14 +1196,38 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildInfoRow(BuildContext context, String label, String value) {
+  Widget _buildAppInfoBadge(String text) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: ResponsiveValues.spacingM(context),
+        vertical: ResponsiveValues.spacingXS(context),
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.getSurface(context).withValues(alpha: 0.55),
+        borderRadius:
+            BorderRadius.circular(ResponsiveValues.radiusFull(context)),
+        border: Border.all(
+          color: AppColors.getDivider(context).withValues(alpha: 0.12),
+        ),
+      ),
+      child: Text(
+        text,
+        style: AppTextStyles.labelSmall(context).copyWith(
+          color: AppColors.getTextPrimary(context),
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppInfoRow(BuildContext context, String label, String value) {
     return Padding(
       padding: EdgeInsets.only(bottom: ResponsiveValues.spacingS(context)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            flex: 4,
+            flex: 5,
             child: Text(
               label,
               style: AppTextStyles.bodySmall(context).copyWith(
@@ -1181,14 +1238,13 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           SizedBox(width: ResponsiveValues.spacingM(context)),
           Expanded(
-            flex: 6,
+            flex: 7,
             child: Text(
               value,
               style: AppTextStyles.bodySmall(context).copyWith(
                 color: AppColors.getTextPrimary(context),
                 height: 1.35,
               ),
-              textAlign: TextAlign.right,
             ),
           ),
         ],

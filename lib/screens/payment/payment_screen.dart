@@ -442,88 +442,95 @@ class _PaymentScreenState extends State<PaymentScreen>
         ),
         if (_selectedPaymentMethod != null) ...[
           SizedBox(height: ResponsiveValues.spacingL(context)),
-          AppCard.glass(
-            child: Padding(
-              padding: ResponsiveValues.cardPadding(context),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+          Align(
+            alignment: Alignment.center,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: AppCard.glass(
+                child: Padding(
+                  padding: ResponsiveValues.cardPadding(context),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.info_rounded,
-                          size: 16, color: AppColors.telegramBlue),
-                      SizedBox(width: ResponsiveValues.spacingS(context)),
-                      Text(
-                        AppStrings.accountDetails,
-                        style: AppTextStyles.labelMedium(context).copyWith(
-                          fontWeight: FontWeight.w600,
+                      Row(
+                        children: [
+                          const Icon(Icons.info_rounded,
+                              size: 16, color: AppColors.telegramBlue),
+                          SizedBox(width: ResponsiveValues.spacingS(context)),
+                          Text(
+                            AppStrings.accountDetails,
+                            style: AppTextStyles.labelMedium(context).copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: ResponsiveValues.spacingM(context)),
+                      Container(
+                        width: double.infinity,
+                        padding: ResponsiveValues.cardPadding(context),
+                        decoration: BoxDecoration(
+                          color: AppColors.getSurface(context)
+                              .withValues(alpha: 0.55),
+                          borderRadius: BorderRadius.circular(
+                            ResponsiveValues.radiusSmall(context),
+                          ),
+                          border: Border.all(
+                            color: AppColors.getDivider(context)
+                                .withValues(alpha: 0.16),
+                          ),
                         ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _selectedPaymentMethod!.accountInfo,
+                                style: AppTextStyles.bodyMedium(context),
+                              ),
+                            ),
+                            InkWell(
+                              onTap: () {
+                                Clipboard.setData(ClipboardData(
+                                  text: _selectedPaymentMethod!.accountInfo,
+                                ));
+                                SnackbarService().showSuccess(
+                                  context,
+                                  AppStrings.copiedToClipboard,
+                                );
+                              },
+                              child: Container(
+                                padding: EdgeInsets.all(
+                                    ResponsiveValues.spacingXXS(context)),
+                                decoration: BoxDecoration(
+                                  color: AppColors.telegramBlue
+                                      .withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(
+                                    ResponsiveValues.radiusSmall(context),
+                                  ),
+                                ),
+                                child: const Icon(Icons.copy_rounded,
+                                    size: 16, color: AppColors.telegramBlue),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: ResponsiveValues.spacingM(context)),
+                      Text(
+                        AppStrings.instructions,
+                        style: AppTextStyles.labelSmall(context).copyWith(
+                          color: AppColors.getTextSecondary(context),
+                        ),
+                      ),
+                      SizedBox(height: ResponsiveValues.spacingXS(context)),
+                      Text(
+                        _selectedPaymentMethod!.instructions,
+                        style: AppTextStyles.bodySmall(context)
+                            .copyWith(height: 1.5),
                       ),
                     ],
                   ),
-                  SizedBox(height: ResponsiveValues.spacingM(context)),
-                  Container(
-                    padding: ResponsiveValues.cardPadding(context),
-                    decoration: BoxDecoration(
-                      color:
-                          AppColors.getSurface(context).withValues(alpha: 0.55),
-                      borderRadius: BorderRadius.circular(
-                        ResponsiveValues.radiusSmall(context),
-                      ),
-                      border: Border.all(
-                        color: AppColors.getDivider(context)
-                            .withValues(alpha: 0.16),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _selectedPaymentMethod!.accountInfo,
-                            style: AppTextStyles.bodyMedium(context),
-                          ),
-                        ),
-                        InkWell(
-                          onTap: () {
-                            Clipboard.setData(ClipboardData(
-                              text: _selectedPaymentMethod!.accountInfo,
-                            ));
-                            SnackbarService().showSuccess(
-                              context,
-                              AppStrings.copiedToClipboard,
-                            );
-                          },
-                          child: Container(
-                            padding: EdgeInsets.all(
-                                ResponsiveValues.spacingXXS(context)),
-                            decoration: BoxDecoration(
-                              color:
-                                  AppColors.telegramBlue.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(
-                                ResponsiveValues.radiusSmall(context),
-                              ),
-                            ),
-                            child: const Icon(Icons.copy_rounded,
-                                size: 16, color: AppColors.telegramBlue),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: ResponsiveValues.spacingM(context)),
-                  Text(
-                    AppStrings.instructions,
-                    style: AppTextStyles.labelSmall(context).copyWith(
-                      color: AppColors.getTextSecondary(context),
-                    ),
-                  ),
-                  SizedBox(height: ResponsiveValues.spacingXS(context)),
-                  Text(
-                    _selectedPaymentMethod!.instructions,
-                    style:
-                        AppTextStyles.bodySmall(context).copyWith(height: 1.5),
-                  ),
-                ],
+                ),
               ),
             ),
           ),

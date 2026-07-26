@@ -2794,11 +2794,12 @@ class SettingsProvider extends ChangeNotifier
 
   String? getFeedbackTelegramUrl() {
     return _getTelegramUrlFromKeys([
-      'support_feedback_telegram_url',
-      'feedback_telegram_url',
-      'feedback_url',
-      'support_feedback_url',
-    ]);
+          'support_feedback_telegram_url',
+          'feedback_telegram_url',
+          'feedback_url',
+          'support_feedback_url',
+        ]) ??
+        'https://t.me/familyacademyfeedbacks';
   }
 
   String? getSupportTelegramUrl() {

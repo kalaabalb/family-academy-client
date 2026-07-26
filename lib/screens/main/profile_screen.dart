@@ -819,13 +819,9 @@ class _ProfileScreenState extends State<ProfileScreen>
         height: 56,
         child: Row(
           children: [
-            Container(
+            SizedBox(
               width: ResponsiveValues.listItemIconContainerSize(context),
               height: ResponsiveValues.listItemIconContainerSize(context),
-              decoration: BoxDecoration(
-                color: AppColors.telegramBlue.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
               child: Icon(
                 icon,
                 size: ResponsiveValues.listItemIconSize(context),
@@ -885,14 +881,9 @@ class _ProfileScreenState extends State<ProfileScreen>
           alignment: Alignment.center,
           child: Row(
             children: [
-              Container(
+              SizedBox(
                 width: ResponsiveValues.listItemIconContainerSize(context),
                 height: ResponsiveValues.listItemIconContainerSize(context),
-                decoration: BoxDecoration(
-                  color: (iconColor ?? AppColors.telegramBlue)
-                      .withValues(alpha: 0.10),
-                  shape: BoxShape.circle,
-                ),
                 child: Icon(
                   icon,
                   size: ResponsiveValues.listItemIconSize(context),
@@ -1001,8 +992,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Future<void> _openFeedbackGroup() async {
     try {
-      final telegramUrl = _settingsProvider.getFeedbackTelegramUrl() ??
-          _settingsProvider.getTelegramBotUrl();
+      final telegramUrl = _settingsProvider.getFeedbackTelegramUrl();
       if (telegramUrl == null || telegramUrl.trim().isEmpty) {
         SnackbarService().showError(context, AppStrings.cannotOpenTelegram);
         return;
@@ -1035,13 +1025,9 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
         child: Row(
           children: [
-            Container(
+            SizedBox(
               width: ResponsiveValues.listItemIconContainerSize(context),
               height: ResponsiveValues.listItemIconContainerSize(context),
-              decoration: BoxDecoration(
-                color: AppColors.telegramBlue.withValues(alpha: 0.10),
-                shape: BoxShape.circle,
-              ),
               child: Icon(
                 icon,
                 size: ResponsiveValues.listItemIconSize(context),

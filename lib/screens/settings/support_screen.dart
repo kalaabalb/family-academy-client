@@ -500,12 +500,22 @@ class _SupportScreenState extends State<SupportScreen>
 
   Widget _buildContactTab() {
     final allContacts = _settingsProvider.getContactInfoList();
+    final feedbackTelegramUrl = _settingsProvider.getFeedbackTelegramUrl();
     final feedbackContact = _findContactBySettingKeys(const [
-      'support_feedback_telegram_url',
-      'feedback_telegram_url',
-      'feedback_url',
-      'support_feedback_url',
-    ]);
+          'support_feedback_telegram_url',
+          'feedback_telegram_url',
+          'feedback_url',
+          'support_feedback_url',
+        ]) ??
+        (feedbackTelegramUrl == null
+            ? null
+            : ContactInfo(
+                type: ContactType.telegram,
+                title: AppStrings.feedback,
+                value: feedbackTelegramUrl,
+                icon: Icons.telegram,
+                settingKey: 'support_feedback_telegram_url',
+              ));
     final supportContact = _findContactBySettingKeys(const [
       'support_telegram_url',
       'support_direct_telegram_url',

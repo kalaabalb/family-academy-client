@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:familyacademyclient/app.dart';
@@ -54,8 +55,35 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
 }
 
+class _WebUnsupportedApp extends StatelessWidget {
+  const _WebUnsupportedApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'Family Academy is not available in browsers. Install the app build for Android, iOS, Windows, macOS, Linux, or TV.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (kIsWeb) {
+    runApp(const _WebUnsupportedApp());
+    return;
+  }
 
   try {
     await HiveService().init();
@@ -156,8 +184,8 @@ Future<void> _bootstrapCoreServices({
 
   if (PlatformHelper.isMobile) {
     final imageCache = PaintingBinding.instance.imageCache;
-    imageCache.maximumSize = 200;
-    imageCache.maximumSizeBytes = 60 << 20;
+    imageCache.maximumSize = 120;
+    imageCache.maximumSizeBytes = 40 << 20;
   }
 
   try {

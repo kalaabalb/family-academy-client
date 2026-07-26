@@ -43,6 +43,7 @@ class _FamilyAcademyAppState extends State<FamilyAcademyApp>
   Timer? _syncTimer;
   StreamSubscription? _deviceDeactivatedSubscription;
   StreamSubscription? _connectivitySubscription;
+  StreamSubscription? _notificationStreamSubscription;
   bool _appInitialized = false;
   bool _overlayReady = false;
   final List<Map<String, dynamic>> _pendingSnackbars = [];
@@ -125,6 +126,7 @@ class _FamilyAcademyAppState extends State<FamilyAcademyApp>
     _syncTimer?.cancel();
     _deviceDeactivatedSubscription?.cancel();
     _connectivitySubscription?.cancel();
+    _notificationStreamSubscription?.cancel();
     super.dispose();
   }
 
@@ -297,7 +299,8 @@ class _FamilyAcademyAppState extends State<FamilyAcademyApp>
 
       await authProvider.initialize();
 
-      widget.notificationService.notificationStream
+      _notificationStreamSubscription = widget
+          .notificationService.notificationStream
           .listen(_handleNotificationData);
 
       if (authProvider.isAuthenticated) {

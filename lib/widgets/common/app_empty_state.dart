@@ -109,10 +109,9 @@ class AppEmptyState extends StatelessWidget {
       icon: Icons.wifi_off_rounded,
       title: '',
       message: displayMessage,
-      actionText:
-          onRetry != null
-              ? (isRefreshing ? '__trying_again__' : '__try_again__')
-              : null,
+      actionText: onRetry != null
+          ? (isRefreshing ? '__trying_again__' : '__try_again__')
+          : null,
       onAction: onRetry,
       type: EmptyStateType.offline,
       isRefreshing: isRefreshing,
@@ -164,10 +163,9 @@ class AppEmptyState extends StatelessWidget {
       icon: Icons.error_outline_rounded,
       title: title, // ✅ Using the title parameter
       message: message,
-      actionText:
-          onRetry != null
-              ? (isRefreshing ? '__trying_again__' : '__try_again__')
-              : null,
+      actionText: onRetry != null
+          ? (isRefreshing ? '__trying_again__' : '__try_again__')
+          : null,
       onAction: onRetry,
       type: EmptyStateType.error,
       isRefreshing: isRefreshing,
@@ -215,7 +213,7 @@ class AppEmptyState extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
+            physics: const ClampingScrollPhysics(),
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: constraints.maxWidth),
               child: Column(

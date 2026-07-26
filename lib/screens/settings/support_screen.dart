@@ -9,7 +9,6 @@ import '../../providers/settings_provider.dart';
 import '../../services/snackbar_service.dart';
 import '../../widgets/common/base_screen_mixin.dart';
 import '../../widgets/common/app_card.dart';
-import '../../themes/app_themes.dart';
 import '../../themes/app_colors.dart';
 import '../../themes/app_text_styles.dart';
 import '../../utils/responsive_values.dart';
@@ -363,6 +362,19 @@ class _SupportScreenState extends State<SupportScreen>
                       ],
                     ),
                   ),
+                  if (_canCopyContactValue(type, value) && !isOffline) ...[
+                    IconButton(
+                      onPressed: () => _copyContactValue(value),
+                      icon: Icon(
+                        Icons.copy_rounded,
+                        size: ResponsiveValues.iconSizeS(context),
+                        color: color,
+                      ),
+                      tooltip: AppStrings.copy,
+                      visualDensity: VisualDensity.compact,
+                      splashRadius: ResponsiveValues.iconSizeS(context),
+                    ),
+                  ],
                   if (canTap && !isOffline) ...[
                     Icon(
                       Icons.chevron_right_rounded,
@@ -376,15 +388,7 @@ class _SupportScreenState extends State<SupportScreen>
           ),
         ),
       ),
-    )
-        .animate()
-        .fadeIn(duration: AppThemes.animationMedium, delay: (index * 50).ms)
-        .slideX(
-          begin: 0.1,
-          end: 0,
-          duration: AppThemes.animationMedium,
-          delay: (index * 50).ms,
-        );
+    );
   }
 
   Widget _buildFAQItem(String question, String answer, {int index = 0}) {
@@ -445,15 +449,7 @@ class _SupportScreenState extends State<SupportScreen>
           ),
         ),
       ),
-    )
-        .animate()
-        .fadeIn(duration: AppThemes.animationMedium, delay: (index * 50).ms)
-        .slideY(
-          begin: 0.1,
-          end: 0,
-          duration: AppThemes.animationMedium,
-          delay: (index * 50).ms,
-        );
+    );
   }
 
   Widget _buildSectionHeader(String title) {

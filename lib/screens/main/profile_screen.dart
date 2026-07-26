@@ -76,8 +76,9 @@ class _ProfileScreenState extends State<ProfileScreen>
   String get screenTitle => AppStrings.profile;
 
   @override
-  String? get screenSubtitle =>
-      isOffline ? AppStrings.offlineMode : _settingsProvider.getProfileScreenSubtitle();
+  String? get screenSubtitle => isOffline
+      ? AppStrings.offlineMode
+      : _settingsProvider.getProfileScreenSubtitle();
 
   @override
   bool get isLoading =>
@@ -87,8 +88,9 @@ class _ProfileScreenState extends State<ProfileScreen>
   bool get hasCachedData => _userProvider.hasInitialData;
 
   @override
-  dynamic get errorMessage =>
-      _cachedUser == null ? _settingsProvider.getProfileLoadErrorMessage() : null;
+  dynamic get errorMessage => _cachedUser == null
+      ? _settingsProvider.getProfileLoadErrorMessage()
+      : null;
 
   @override
   List<Widget>? get appBarActions => [
@@ -1097,21 +1099,36 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> _showAppInfo() async {
-    final diagnostics = await NotificationService().getDiagnostics();
     if (!mounted) return;
 
-    final notificationStatus = [
-      'Platform: ${diagnostics['platform']}',
-      'Push available on this device: ${diagnostics['push_capable_platform'] == true ? 'Yes' : 'No'}',
-      'Notifications turned on: ${diagnostics['notifications_enabled'] == true ? 'Yes' : 'No'}',
-      'Internet connection: ${diagnostics['is_online'] == true ? 'Online' : 'Offline'}',
-      'Signed in: ${diagnostics['is_authenticated'] == true ? 'Yes' : 'No'}',
-      'Notification service ready: ${diagnostics['service_initialized'] == true ? 'Yes' : 'No'}',
-      'Firebase ready: ${diagnostics['firebase_initialized'] == true ? 'Yes' : 'No'}',
-      'Push token available: ${diagnostics['live_fcm_token_present'] == true || diagnostics['cached_fcm_token_present'] == true ? 'Yes' : 'No'}',
-      'Push token waiting to sync: ${diagnostics['pending_fcm_token_present'] == true ? 'Yes' : 'No'}',
-      'Token preview: ${diagnostics['fcm_token_preview']}',
-    ].join('\n');
+    final authProvider = context.read<AuthProvider>();
+    final user =
+        _cachedUser ?? _userProvider.currentUser ?? authProvider.currentUser;
+    final schoolName = _schoolName?.trim().isNotEmpty == true
+        ? _schoolName!
+        : (user?.schoolId != null
+            ? 'School #${user!.schoolId}'
+            : 'Not selected yet');
+    final accountStatus = user?.accountStatus.toLowerCase() ?? 'unknown';
+    final accountSummary = accountStatus == 'active'
+        ? 'Active learning access'
+        : accountStatus == 'expired'
+            ? 'Needs renewal'
+            : accountStatus == 'unpaid'
+                ? 'Payment pending'
+                : accountStatus;
+    final notificationSummary = _notificationsEnabled ? 'On' : 'Off';
+    final parentSummary =
+        user?.hasParentLinked == true ? 'Linked' : 'Not linked';
+    final deviceLabels = <String>[
+      if (user?.primaryDeviceId?.isNotEmpty == true) 'Primary device',
+      if (user?.tvDeviceId?.isNotEmpty == true) 'TV device',
+    ];
+    final deviceSummary = user == null
+        ? 'Unknown'
+        : (deviceLabels.isEmpty
+            ? 'No device linked yet'
+            : deviceLabels.join(' • '));
 
     await AppDialog.show(
       context: context,
@@ -1128,30 +1145,63 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           SizedBox(height: ResponsiveValues.spacingS(context)),
           Text(
-            AppStrings.empoweringStudents,
+            'Family Academy is built to follow the learner across phone, desktop, TV, and the parent view.',
             style: AppTextStyles.bodyMedium(context).copyWith(
               color: AppColors.getTextSecondary(context),
             ),
           ),
           SizedBox(height: ResponsiveValues.spacingL(context)),
           Text(
-            'Notification status',
+            'Your account',
             style: AppTextStyles.titleSmall(context)
                 .copyWith(fontWeight: FontWeight.w700),
           ),
           SizedBox(height: ResponsiveValues.spacingS(context)),
+          _buildInfoRow(context, 'Profile name', user?.username ?? 'Unknown'),
+          _buildInfoRow(context, 'School', schoolName),
+          _buildInfoRow(context, 'Access', accountSummary),
+          _buildInfoRow(context, 'Parent link', parentSummary),
+          _buildInfoRow(context, 'Devices', deviceSummary),
+          _buildInfoRow(context, 'Notifications', notificationSummary),
+          SizedBox(height: ResponsiveValues.spacingL(context)),
           Text(
-            notificationStatus,
+            'Need help? Open Support for Telegram, email, WhatsApp, and FAQs.',
             style: AppTextStyles.bodySmall(context).copyWith(
               color: AppColors.getTextSecondary(context),
               height: 1.45,
             ),
           ),
-          SizedBox(height: ResponsiveValues.spacingL(context)),
-          Text(
-            '© 2026 Family Academy',
-            style: AppTextStyles.labelSmall(context).copyWith(
-              color: AppColors.getTextSecondary(context),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(BuildContext context, String label, String value) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: ResponsiveValues.spacingS(context)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 4,
+            child: Text(
+              label,
+              style: AppTextStyles.bodySmall(context).copyWith(
+                color: AppColors.getTextSecondary(context),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          SizedBox(width: ResponsiveValues.spacingM(context)),
+          Expanded(
+            flex: 6,
+            child: Text(
+              value,
+              style: AppTextStyles.bodySmall(context).copyWith(
+                color: AppColors.getTextPrimary(context),
+                height: 1.35,
+              ),
+              textAlign: TextAlign.right,
             ),
           ),
         ],

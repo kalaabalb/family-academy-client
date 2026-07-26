@@ -68,10 +68,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
   // ✅ Shimmer type for chatbot
   @override
-  ShimmerType get shimmerType => ShimmerType.textLine;
+  ShimmerType get shimmerType => ShimmerType.chatbotScreen;
 
   @override
-  int get shimmerItemCount => 5;
+  int get shimmerItemCount => 1;
 
   @override
   Widget? get appBarLeading => ScreenSize.isMobile(context)

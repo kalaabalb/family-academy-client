@@ -127,6 +127,8 @@ enum ShimmerType {
   contactCard,
   statusCard,
   pairingCard,
+  chatbotScreen,
+  progressScreen,
   textLine,
   circle,
   rectangle,

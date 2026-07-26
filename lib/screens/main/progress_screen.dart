@@ -75,6 +75,12 @@ class _ProgressScreenState extends State<ProgressScreen>
   dynamic get errorMessage => null;
 
   @override
+  ShimmerType get shimmerType => ShimmerType.progressScreen;
+
+  @override
+  int get shimmerItemCount => 1;
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final authProvider = context.read<AuthProvider>();
@@ -141,7 +147,8 @@ class _ProgressScreenState extends State<ProgressScreen>
   }
 
   void _setupStreamListeners() {
-    _progressUpdatesSubscription = _progressProvider.progressUpdates.listen((_) {
+    _progressUpdatesSubscription =
+        _progressProvider.progressUpdates.listen((_) {
       if (isMounted) {
         _debounceTimer?.cancel();
         _debounceTimer = Timer(const Duration(milliseconds: 300), () {
@@ -509,7 +516,8 @@ class _ProgressScreenState extends State<ProgressScreen>
                   children: [
                     Expanded(
                       child: _buildMiniOverviewCard(
-                        title: _settingsProvider.getProgressStartedChaptersTitle(),
+                        title:
+                            _settingsProvider.getProgressStartedChaptersTitle(),
                         value: '$totalChaptersAttempted',
                         subtitle: '$chaptersCompleted completed',
                         icon: Icons.menu_book_rounded,
@@ -519,9 +527,11 @@ class _ProgressScreenState extends State<ProgressScreen>
                     SizedBox(width: ResponsiveValues.spacingM(context)),
                     Expanded(
                       child: _buildMiniOverviewCard(
-                        title: _settingsProvider.getProgressLearningActionsTitle(),
+                        title:
+                            _settingsProvider.getProgressLearningActionsTitle(),
                         value: '${notesViewed + questionsAttempted}',
-                        subtitle: '$notesViewed notes, $questionsAttempted practice',
+                        subtitle:
+                            '$notesViewed notes, $questionsAttempted practice',
                         icon: Icons.auto_stories_rounded,
                         color: AppColors.telegramGreen,
                       ),
@@ -542,7 +552,8 @@ class _ProgressScreenState extends State<ProgressScreen>
                 SizedBox(height: ResponsiveValues.spacingXL(context)),
                 _buildProgressItem(
                   title: _settingsProvider.getProgressOverallCompletionTitle(),
-                  value: '$chaptersCompleted/$totalAvailableChapters chapters completed',
+                  value:
+                      '$chaptersCompleted/$totalAvailableChapters chapters completed',
                   percentage: overallCompletion.toDouble(),
                   color: overallCompletion >= 80
                       ? AppColors.telegramGreen
@@ -569,7 +580,8 @@ class _ProgressScreenState extends State<ProgressScreen>
                       child: _buildMiniOverviewCard(
                         title: AppStrings.studyTime,
                         value: _formatStudyTimeDisplay(studyTimeHours),
-                        subtitle: _settingsProvider.getProgressStudyTimeSubtitle(),
+                        subtitle:
+                            _settingsProvider.getProgressStudyTimeSubtitle(),
                         icon: Icons.timer_rounded,
                         color: AppColors.telegramPurple,
                       ),
@@ -923,8 +935,9 @@ class _ProgressScreenState extends State<ProgressScreen>
               width: ResponsiveValues.iconSizeXL(context),
               height: ResponsiveValues.iconSizeXL(context),
               decoration: BoxDecoration(
-                color: (passed ? AppColors.telegramGreen : AppColors.telegramRed)
-                    .withValues(alpha: 0.12),
+                color:
+                    (passed ? AppColors.telegramGreen : AppColors.telegramRed)
+                        .withValues(alpha: 0.12),
                 border: Border.all(
                   color:
                       (passed ? AppColors.telegramGreen : AppColors.telegramRed)

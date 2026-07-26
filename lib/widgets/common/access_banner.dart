@@ -91,53 +91,89 @@ class AccessBanner extends StatelessWidget {
     final resolvedTitle = _resolveTitle(settingsProvider);
     final resolvedMessage = _resolveMessage(settingsProvider);
     final resolvedActionText = _resolveActionText(settingsProvider);
+    final isLimitedAccess = preset == AccessBannerPreset.limitedAccess;
+    final horizontalMargin = ResponsiveValues.sectionPadding(context);
+    final verticalMargin = isLimitedAccess
+        ? ResponsiveValues.spacingXS(context)
+        : ResponsiveValues.spacingS(context);
+    final innerPadding = EdgeInsets.symmetric(
+      horizontal: isLimitedAccess
+          ? ResponsiveValues.spacingL(context)
+          : ResponsiveValues.sectionPadding(context),
+      vertical: isLimitedAccess
+          ? ResponsiveValues.spacingM(context)
+          : ResponsiveValues.sectionPadding(context),
+    );
     return Container(
       margin: EdgeInsets.symmetric(
-        horizontal: ResponsiveValues.sectionPadding(context),
-        vertical: ResponsiveValues.spacingS(context),
+        horizontal: horizontalMargin,
+        vertical: verticalMargin,
       ),
       child: AppCard.glass(
         child: Padding(
-          padding: EdgeInsets.all(ResponsiveValues.sectionPadding(context)),
+          padding: innerPadding,
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                padding: EdgeInsets.all(ResponsiveValues.spacingM(context)),
+                padding: EdgeInsets.all(
+                  isLimitedAccess
+                      ? ResponsiveValues.spacingS(context)
+                      : ResponsiveValues.spacingM(context),
+                ),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(
                       ResponsiveValues.radiusMedium(context)),
                 ),
-                child: Icon(icon,
-                    size: ResponsiveValues.iconSizeL(context), color: color),
+                child: Icon(
+                  icon,
+                  size: isLimitedAccess
+                      ? ResponsiveValues.iconSizeM(context)
+                      : ResponsiveValues.iconSizeL(context),
+                  color: color,
+                ),
               ),
-              SizedBox(width: ResponsiveValues.spacingL(context)),
+              SizedBox(width: ResponsiveValues.spacingM(context)),
               Expanded(
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       resolvedTitle,
-                      style: AppTextStyles.titleSmall(context).copyWith(
+                      style: (isLimitedAccess
+                              ? AppTextStyles.bodyMedium(context)
+                              : AppTextStyles.titleSmall(context))
+                          .copyWith(
                         color: color,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    SizedBox(height: ResponsiveValues.spacingXS(context)),
+                    SizedBox(
+                      height: isLimitedAccess
+                          ? ResponsiveValues.spacingXXS(context)
+                          : ResponsiveValues.spacingXS(context),
+                    ),
                     Text(
                       resolvedMessage,
                       style: AppTextStyles.bodySmall(context).copyWith(
                         color: AppColors.getTextSecondary(context),
                       ),
+                      maxLines: isLimitedAccess ? 2 : 3,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
               if (resolvedActionText != null && onAction != null) ...[
                 SizedBox(width: ResponsiveValues.spacingM(context)),
-                AppButton.glass(
+                AppButton(
                   label: resolvedActionText,
                   onPressed: onAction,
+                  variant: ButtonVariant.secondary,
+                  size: ButtonSize.small,
+                  expanded: false,
                 ),
               ],
             ],

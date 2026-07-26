@@ -59,7 +59,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       _provider.isLoaded && _provider.notifications.isNotEmpty;
 
   @override
-  dynamic get errorMessage => _provider.errorMessage;
+  dynamic get errorMessage => null;
 
   // ✅ Shimmer type for notifications
   @override
@@ -996,15 +996,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
     if (shouldShowLoading) {
       return buildLoadingShimmer();
-    }
-
-    if (visibleNotifications == 0 && _provider.errorMessage != null) {
-      return Center(
-        child: buildErrorWidget(
-          _provider.errorMessage.toString(),
-          onRetry: onRefresh,
-        ),
-      );
     }
 
     final shouldShowEmpty = visibleNotifications == 0 &&

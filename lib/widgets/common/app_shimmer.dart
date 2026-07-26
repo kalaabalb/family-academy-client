@@ -29,9 +29,7 @@ class AppShimmer extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final effectiveBaseColor = baseColor ??
-        (isDark
-                ? AppColors.darkCard
-                : AppColors.shimmerBase)
+        (isDark ? AppColors.darkCard : AppColors.shimmerBase)
             .withValues(alpha: isOffline ? 0.24 : 0.5);
 
     final effectiveHighlightColor = highlightColor ??
@@ -78,6 +76,10 @@ class AppShimmer extends StatelessWidget {
         return _StatusCardShimmer(context);
       case ShimmerType.pairingCard:
         return _PairingCardShimmer(context);
+      case ShimmerType.chatbotScreen:
+        return _ChatbotScreenShimmer(context);
+      case ShimmerType.progressScreen:
+        return _ProgressScreenShimmer(context);
       case ShimmerType.textLine:
         return _TextLineShimmer(context);
       case ShimmerType.circle:
@@ -674,4 +676,226 @@ class AppShimmer extends StatelessWidget {
   Widget _StatusCardShimmer(BuildContext context) => _RectangleShimmer(context);
   Widget _PairingCardShimmer(BuildContext context) =>
       _RectangleShimmer(context);
+
+  Widget _ChatbotScreenShimmer(BuildContext context) {
+    final padding = ResponsiveValues.cardPadding(context);
+    final messageHeight = MediaQuery.of(context).size.height * 0.46;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          margin: EdgeInsets.only(bottom: ResponsiveValues.spacingL(context)),
+          padding: padding,
+          decoration: BoxDecoration(
+            color: AppColors.getSurface(context),
+            borderRadius: BorderRadius.circular(
+              ResponsiveValues.radiusLarge(context),
+            ),
+            border: Border.all(
+              color: AppColors.getDivider(context).withValues(alpha: 0.25),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: ResponsiveValues.iconSizeXL(context),
+                height: ResponsiveValues.iconSizeXL(context),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(
+                    ResponsiveValues.radiusLarge(context),
+                  ),
+                ),
+              ),
+              SizedBox(width: ResponsiveValues.spacingM(context)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _TextLineShimmer(context),
+                    SizedBox(height: ResponsiveValues.spacingXS(context)),
+                    _TextLineShimmer(context),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: messageHeight,
+          child: ListView.separated(
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: 4,
+            separatorBuilder: (_, __) =>
+                SizedBox(height: ResponsiveValues.spacingM(context)),
+            itemBuilder: (context, index) {
+              final isUser = index.isOdd;
+              return Align(
+                alignment:
+                    isUser ? Alignment.centerRight : Alignment.centerLeft,
+                child: FractionallySizedBox(
+                  widthFactor: isUser ? 0.68 : 0.82,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: ResponsiveValues.spacingL(context),
+                      vertical: ResponsiveValues.spacingM(context),
+                    ),
+                    decoration: BoxDecoration(
+                      color: isUser
+                          ? AppColors.telegramBlue.withValues(alpha: 0.18)
+                          : AppColors.getSurface(context),
+                      borderRadius: BorderRadius.circular(
+                        ResponsiveValues.radiusLarge(context),
+                      ),
+                      border: Border.all(
+                        color: AppColors.getDivider(context)
+                            .withValues(alpha: 0.20),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _TextLineShimmer(context),
+                        SizedBox(height: ResponsiveValues.spacingS(context)),
+                        _TextLineShimmer(context),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        Container(
+          margin: EdgeInsets.only(top: ResponsiveValues.spacingL(context)),
+          padding: ResponsiveValues.cardPadding(context),
+          decoration: BoxDecoration(
+            color: AppColors.getSurface(context),
+            borderRadius: BorderRadius.circular(
+              ResponsiveValues.radiusLarge(context),
+            ),
+            border: Border.all(
+              color: AppColors.getDivider(context).withValues(alpha: 0.25),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(child: _TextLineShimmer(context)),
+              SizedBox(width: ResponsiveValues.spacingM(context)),
+              Container(
+                width: ResponsiveValues.iconSizeXL(context),
+                height: ResponsiveValues.iconSizeXL(context),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _ProgressScreenShimmer(BuildContext context) {
+    final padding = ResponsiveValues.cardPadding(context);
+
+    Widget statCircle() => Container(
+          width: ResponsiveValues.statCircleSize(context),
+          height: ResponsiveValues.statCircleSize(context),
+          padding: EdgeInsets.all(ResponsiveValues.spacingM(context)),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius:
+                  BorderRadius.circular(ResponsiveValues.radiusLarge(context)),
+            ),
+          ),
+        );
+
+    Widget cardBlock({double height = 88}) => Container(
+          height: height,
+          decoration: BoxDecoration(
+            color: AppColors.getSurface(context),
+            borderRadius: BorderRadius.circular(
+              ResponsiveValues.radiusLarge(context),
+            ),
+            border: Border.all(
+              color: AppColors.getDivider(context).withValues(alpha: 0.25),
+            ),
+          ),
+        );
+
+    return SingleChildScrollView(
+      physics: const NeverScrollableScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: padding,
+            decoration: BoxDecoration(
+              color: AppColors.getSurface(context),
+              borderRadius: BorderRadius.circular(
+                ResponsiveValues.radiusLarge(context),
+              ),
+              border: Border.all(
+                color: AppColors.getDivider(context).withValues(alpha: 0.25),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                statCircle(),
+                statCircle(),
+                statCircle(),
+              ],
+            ),
+          ),
+          SizedBox(height: ResponsiveValues.spacingL(context)),
+          cardBlock(height: 172),
+          SizedBox(height: ResponsiveValues.spacingL(context)),
+          cardBlock(height: 228),
+          SizedBox(height: ResponsiveValues.spacingL(context)),
+          cardBlock(height: 180),
+          SizedBox(height: ResponsiveValues.spacingL(context)),
+          Container(
+            padding: padding,
+            decoration: BoxDecoration(
+              color: AppColors.getSurface(context),
+              borderRadius: BorderRadius.circular(
+                ResponsiveValues.radiusLarge(context),
+              ),
+              border: Border.all(
+                color: AppColors.getDivider(context).withValues(alpha: 0.25),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _TextLineShimmer(context),
+                SizedBox(height: ResponsiveValues.spacingM(context)),
+                Wrap(
+                  spacing: ResponsiveValues.spacingM(context),
+                  runSpacing: ResponsiveValues.spacingM(context),
+                  children: List.generate(
+                    6,
+                    (_) => Container(
+                      width: ResponsiveValues.statCircleSize(context) * 0.95,
+                      height: ResponsiveValues.statCircleSize(context) * 0.9,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(
+                          ResponsiveValues.radiusMedium(context),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

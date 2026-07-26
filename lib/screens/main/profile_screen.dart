@@ -1105,93 +1105,94 @@ class _ProfileScreenState extends State<ProfileScreen>
       context: context,
       title: 'About Family Academy',
       message: '',
-      customContent: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: ResponsiveValues.cardPadding(context),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.telegramBlue.withValues(alpha: 0.14),
-                  AppColors.telegramPurple.withValues(alpha: 0.08),
+      customContent: AppCard.solid(
+        backgroundColor: AppColors.getCard(context),
+        borderColor: AppColors.getDivider(context).withValues(alpha: 0.28),
+        hasShadow: false,
+        padding: ResponsiveValues.cardPadding(context),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: ResponsiveValues.cardPadding(context),
+              decoration: BoxDecoration(
+                color: AppColors.getSurface(context).withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(
+                  ResponsiveValues.radiusLarge(context),
+                ),
+                border: Border.all(
+                  color: AppColors.getDivider(context).withValues(alpha: 0.18),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Family Academy',
+                    style: AppTextStyles.titleLarge(context).copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(height: ResponsiveValues.spacingXXS(context)),
+                  Text(
+                    'A learning platform for students, parents, teachers, and TV-based study rooms.',
+                    style: AppTextStyles.bodyMedium(context).copyWith(
+                      color: AppColors.getTextSecondary(context),
+                      height: 1.45,
+                    ),
+                  ),
+                  SizedBox(height: ResponsiveValues.spacingM(context)),
+                  Wrap(
+                    spacing: ResponsiveValues.spacingS(context),
+                    runSpacing: ResponsiveValues.spacingS(context),
+                    children: [
+                      _buildAppInfoBadge('Mobile learning'),
+                      _buildAppInfoBadge('Desktop access'),
+                      _buildAppInfoBadge('TV support'),
+                      _buildAppInfoBadge('Parent controls'),
+                    ],
+                  ),
                 ],
               ),
-              borderRadius: BorderRadius.circular(
-                ResponsiveValues.radiusLarge(context),
+            ),
+            SizedBox(height: ResponsiveValues.spacingL(context)),
+            Text(
+              'Product snapshot',
+              style: AppTextStyles.titleSmall(context).copyWith(
+                fontWeight: FontWeight.w700,
               ),
-              border: Border.all(
-                color: AppColors.getDivider(context).withValues(alpha: 0.10),
+            ),
+            SizedBox(height: ResponsiveValues.spacingS(context)),
+            _buildAppInfoRow(context, 'Version', AppConstants.appVersion),
+            _buildAppInfoRow(
+              context,
+              'Platform support',
+              'Android, iOS, Web, Windows, macOS, Linux, TV',
+            ),
+            _buildAppInfoRow(
+              context,
+              'Learning scope',
+              'Notes, videos, quizzes, exams, progress, and chatbot support',
+            ),
+            _buildAppInfoRow(context, 'School', schoolName),
+            _buildAppInfoRow(context, 'Linked devices', deviceSummary),
+            _buildAppInfoRow(
+              context,
+              'Parent access',
+              user?.hasParentLinked == true ? 'Enabled' : 'Not linked',
+            ),
+            SizedBox(height: ResponsiveValues.spacingL(context)),
+            Text(
+              'Need help? Open Support for Telegram, email, WhatsApp, and FAQs.',
+              style: AppTextStyles.bodySmall(context).copyWith(
+                color: AppColors.getTextSecondary(context),
+                height: 1.45,
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Family Academy',
-                  style: AppTextStyles.titleLarge(context).copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                SizedBox(height: ResponsiveValues.spacingXXS(context)),
-                Text(
-                  'A learning platform for students, parents, teachers, and TV-based study rooms.',
-                  style: AppTextStyles.bodyMedium(context).copyWith(
-                    color: AppColors.getTextSecondary(context),
-                    height: 1.45,
-                  ),
-                ),
-                SizedBox(height: ResponsiveValues.spacingM(context)),
-                Wrap(
-                  spacing: ResponsiveValues.spacingS(context),
-                  runSpacing: ResponsiveValues.spacingS(context),
-                  children: [
-                    _buildAppInfoBadge('Mobile learning'),
-                    _buildAppInfoBadge('Desktop access'),
-                    _buildAppInfoBadge('TV support'),
-                    _buildAppInfoBadge('Parent controls'),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: ResponsiveValues.spacingL(context)),
-          Text(
-            'Product snapshot',
-            style: AppTextStyles.titleSmall(context).copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          SizedBox(height: ResponsiveValues.spacingS(context)),
-          _buildAppInfoRow(context, 'Version', AppConstants.appVersion),
-          _buildAppInfoRow(
-            context,
-            'Platform support',
-            'Android, iOS, Web, Windows, macOS, Linux, TV',
-          ),
-          _buildAppInfoRow(
-            context,
-            'Learning scope',
-            'Notes, videos, quizzes, exams, progress, and chatbot support',
-          ),
-          _buildAppInfoRow(context, 'School', schoolName),
-          _buildAppInfoRow(context, 'Linked devices', deviceSummary),
-          _buildAppInfoRow(
-            context,
-            'Parent access',
-            user?.hasParentLinked == true ? 'Enabled' : 'Not linked',
-          ),
-          SizedBox(height: ResponsiveValues.spacingL(context)),
-          Text(
-            'Need help? Open Support for Telegram, email, WhatsApp, and FAQs.',
-            style: AppTextStyles.bodySmall(context).copyWith(
-              color: AppColors.getTextSecondary(context),
-              height: 1.45,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

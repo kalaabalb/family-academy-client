@@ -59,7 +59,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       _provider.isLoaded && _provider.notifications.isNotEmpty;
 
   @override
-  dynamic get errorMessage => null;
+  dynamic get errorMessage => _provider.errorMessage;
 
   // ✅ Shimmer type for notifications
   @override

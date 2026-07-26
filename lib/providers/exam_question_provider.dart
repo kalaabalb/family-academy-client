@@ -41,7 +41,7 @@ class ExamQuestionProvider extends ChangeNotifier
   final Map<int, Map<int, String>> _savedAnswers = {};
 
   static const Duration _cacheDuration = AppConstants.cacheTTLQuestions;
-  static const Duration _cacheCleanupInterval = Duration(minutes: 15);
+  static const Duration _cacheCleanupInterval = Duration(minutes: 30);
 
   Box? _questionsBox;
   Box? _answersBox;
@@ -57,7 +57,7 @@ class ExamQuestionProvider extends ChangeNotifier
 
   // ✅ FIXED: Rate limiting
   final Map<int, DateTime?> _lastBackgroundRefreshForExam = {};
-  static const Duration _minBackgroundInterval = Duration(minutes: 2);
+  static const Duration _minBackgroundInterval = Duration(minutes: 5);
 
   ExamQuestionProvider({
     required this.apiService,

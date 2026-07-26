@@ -33,7 +33,7 @@ class ChapterProvider extends ChangeNotifier
 
   static const Duration cacheDuration = AppConstants.cacheTTLChapters;
   @override
-  Duration get refreshInterval => const Duration(minutes: 10);
+  Duration get refreshInterval => const Duration(minutes: 15);
 
   Box? _chaptersBox;
   int _apiCallCount = 0;
@@ -400,7 +400,7 @@ class ChapterProvider extends ChangeNotifier
 
   // ✅ FIXED: Background refresh with rate limiting
   final Map<dynamic, dynamic> _lastBackgroundRefreshForCourse = {};
-  static const Duration _minBackgroundInterval = Duration(minutes: 2);
+  static const Duration _minBackgroundInterval = Duration(minutes: 5);
 
   Future<void> _refreshInBackground(int courseId) async {
     // Rate limit background refreshes per course

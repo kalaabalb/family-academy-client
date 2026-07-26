@@ -55,7 +55,7 @@ class VideoProvider extends ChangeNotifier
   static const Duration _downloadMetadataCache =
       AppConstants.cacheTTLDownloadMetadata;
   @override
-  Duration get refreshInterval => const Duration(minutes: 10);
+  Duration get refreshInterval => const Duration(minutes: 15);
 
   Box? _videosBox;
   Box? _downloadsBox;
@@ -68,7 +68,7 @@ class VideoProvider extends ChangeNotifier
 
   // ✅ FIXED: Rate limiting
   final Map<int, DateTime?> _lastBackgroundRefreshForChapter = {};
-  static const Duration _minBackgroundInterval = Duration(minutes: 2);
+  static const Duration _minBackgroundInterval = Duration(minutes: 5);
 
   VideoProvider({
     required this.apiService,

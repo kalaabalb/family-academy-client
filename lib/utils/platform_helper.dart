@@ -202,9 +202,9 @@ class PlatformHelper {
 
   // Network optimization
   static int get maxCacheSize {
-    if (isTv) return 500 * 1024 * 1024; // 500MB for TV
-    if (isDesktop) return 200 * 1024 * 1024; // 200MB for desktop
-    return 100 * 1024 * 1024; // 100MB for mobile
+    if (isTv) return 320 * 1024 * 1024; // 320MB for TV
+    if (isDesktop) return 160 * 1024 * 1024; // 160MB for desktop
+    return 80 * 1024 * 1024; // 80MB for mobile
   }
 
   static int get preloadSize {

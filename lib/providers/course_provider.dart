@@ -44,7 +44,7 @@ class CourseProvider extends ChangeNotifier
   static const Duration _cacheDuration = AppConstants.cacheTTLCourses;
   static const Duration _retryDelay = Duration(seconds: 30);
   @override
-  Duration get refreshInterval => const Duration(minutes: 10);
+  Duration get refreshInterval => const Duration(minutes: 15);
 
   Box? _coursesBox;
   int _apiCallCount = 0;
@@ -632,7 +632,7 @@ class CourseProvider extends ChangeNotifier
 
   // ✅ FIXED: Background refresh with rate limiting
   DateTime? _lastBackgroundRefresh;
-  static const Duration _minBackgroundInterval = Duration(minutes: 2);
+  static const Duration _minBackgroundInterval = Duration(minutes: 5);
 
   @override
   Future<void> onBackgroundRefresh() async {

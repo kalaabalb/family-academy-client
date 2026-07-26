@@ -49,8 +49,8 @@ class _FamilyAcademyAppState extends State<FamilyAcademyApp>
   final List<Map<String, dynamic>> _pendingSnackbars = [];
   DateTime? _lastDataRefreshAt;
   static const Duration _minRefreshInterval = Duration(minutes: 2);
-  static const Duration _sessionCheckInterval = Duration(minutes: 45);
-  static const Duration _backgroundSyncInterval = Duration(minutes: 30);
+  static const Duration _sessionCheckInterval = Duration(minutes: 60);
+  static const Duration _backgroundSyncInterval = Duration(minutes: 45);
 
   @override
   void initState() {

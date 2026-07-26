@@ -37,7 +37,7 @@ class NoteProvider extends ChangeNotifier
   static const Duration cacheDuration = AppConstants.cacheTTLNotes;
   static const Duration viewedCacheDuration = Duration(days: 30);
   @override
-  Duration get refreshInterval => const Duration(minutes: 10);
+  Duration get refreshInterval => const Duration(minutes: 15);
 
   Box? _notesBox;
   Box? _viewedBox;
@@ -49,7 +49,7 @@ class NoteProvider extends ChangeNotifier
 
   // ✅ FIXED: Rate limiting
   final Map<int, DateTime?> _lastBackgroundRefreshForChapter = {};
-  static const Duration _minBackgroundInterval = Duration(minutes: 2);
+  static const Duration _minBackgroundInterval = Duration(minutes: 5);
 
   NoteProvider({
     required this.apiService,

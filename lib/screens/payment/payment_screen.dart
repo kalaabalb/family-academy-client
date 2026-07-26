@@ -782,28 +782,31 @@ class _PaymentScreenState extends State<PaymentScreen>
               height: 1,
             ),
             SizedBox(height: ResponsiveValues.spacingL(context)),
-            _buildSummaryRow(
-              icon: Icons.category_rounded,
-              label: AppStrings.category,
-              value: _category?.name ?? AppStrings.notAvailable,
-            ),
-            SizedBox(height: ResponsiveValues.spacingS(context)),
-            _buildSummaryRow(
-              icon: Icons.calendar_today_rounded,
-              label: AppStrings.billingCycle,
-              value: _getBillingCycleDescription(),
-            ),
-            SizedBox(height: ResponsiveValues.spacingS(context)),
-            _buildSummaryRow(
-              icon: Icons.timer_rounded,
-              label: AppStrings.accessDuration,
-              value: _getAccessDurationText(),
-            ),
-            SizedBox(height: ResponsiveValues.spacingS(context)),
-            _buildSummaryRow(
-              icon: Icons.person_rounded,
-              label: AppStrings.username,
-              value: _username,
+            Wrap(
+              spacing: ResponsiveValues.spacingM(context),
+              runSpacing: ResponsiveValues.spacingM(context),
+              children: [
+                _buildSummaryChip(
+                  icon: Icons.category_rounded,
+                  label: AppStrings.category,
+                  value: _category?.name ?? AppStrings.notAvailable,
+                ),
+                _buildSummaryChip(
+                  icon: Icons.calendar_today_rounded,
+                  label: AppStrings.billingCycle,
+                  value: _getBillingCycleDescription(),
+                ),
+                _buildSummaryChip(
+                  icon: Icons.timer_rounded,
+                  label: AppStrings.accessDuration,
+                  value: _getAccessDurationText(),
+                ),
+                _buildSummaryChip(
+                  icon: Icons.person_rounded,
+                  label: AppStrings.username,
+                  value: _username,
+                ),
+              ],
             ),
           ],
         ),
@@ -811,51 +814,62 @@ class _PaymentScreenState extends State<PaymentScreen>
     );
   }
 
-  Widget _buildSummaryRow({
+  Widget _buildSummaryChip({
     required IconData icon,
     required String label,
     required String value,
   }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: ResponsiveValues.iconSizeL(context),
-          height: ResponsiveValues.iconSizeL(context),
-          decoration: BoxDecoration(
-            color: AppColors.telegramBlue.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
+    return Container(
+      constraints: BoxConstraints(
+        minWidth: MediaQuery.sizeOf(context).width >= 700 ? 180 : 0,
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: ResponsiveValues.spacingM(context),
+        vertical: ResponsiveValues.spacingS(context),
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.getSurface(context).withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(
+          ResponsiveValues.radiusMedium(context),
+        ),
+        border: Border.all(
+          color: AppColors.getDivider(context).withValues(alpha: 0.14),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
             icon,
-            size: ResponsiveValues.iconSizeXS(context),
+            size: ResponsiveValues.iconSizeS(context),
             color: AppColors.telegramBlue,
           ),
-        ),
-        SizedBox(width: ResponsiveValues.spacingM(context)),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: AppTextStyles.labelMedium(context).copyWith(
-                  color: AppColors.getTextSecondary(context),
-                  fontWeight: FontWeight.w600,
+          SizedBox(width: ResponsiveValues.spacingS(context)),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: AppTextStyles.labelSmall(context).copyWith(
+                    color: AppColors.getTextSecondary(context),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              SizedBox(height: ResponsiveValues.spacingXXS(context)),
-              Text(
-                value,
-                style: AppTextStyles.bodyMedium(context).copyWith(
-                  fontWeight: FontWeight.w600,
-                  height: 1.35,
+                SizedBox(height: ResponsiveValues.spacingXXS(context)),
+                Text(
+                  value,
+                  style: AppTextStyles.bodyMedium(context).copyWith(
+                    fontWeight: FontWeight.w600,
+                    height: 1.2,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -870,73 +884,113 @@ class _PaymentScreenState extends State<PaymentScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                AppStrings.paymentDetails,
-                style: AppTextStyles.titleMedium(context),
+              _buildFormSectionBanner(
+                step: '01',
+                title: AppStrings.paymentDetails,
+                subtitle:
+                    'Choose a payment method and fill in the payer details.',
               ),
               SizedBox(height: ResponsiveValues.spacingL(context)),
-              _buildPaymentMethodDropdown(methods),
-              SizedBox(height: ResponsiveValues.spacingL(context)),
-              AppTextField(
-                controller: _accountHolderNameController,
-                label: AppStrings.accountHolderName,
-                hint: AppStrings.enterAccountHolderName,
-                prefixIcon: Icons.person_outline_rounded,
-                enabled: !isOffline,
-                validator: _validateAccountHolderName,
-                requiresOnline: true,
+              Container(
+                width: double.infinity,
+                padding: ResponsiveValues.cardPadding(context),
+                decoration: BoxDecoration(
+                  color: AppColors.getSurface(context).withValues(alpha: 0.28),
+                  borderRadius: BorderRadius.circular(
+                    ResponsiveValues.radiusMedium(context),
+                  ),
+                  border: Border.all(
+                    color:
+                        AppColors.getDivider(context).withValues(alpha: 0.14),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildPaymentMethodDropdown(methods),
+                    SizedBox(height: ResponsiveValues.spacingL(context)),
+                    AppTextField(
+                      controller: _accountHolderNameController,
+                      label: AppStrings.accountHolderName,
+                      hint: AppStrings.enterAccountHolderName,
+                      prefixIcon: Icons.person_outline_rounded,
+                      enabled: !isOffline,
+                      validator: _validateAccountHolderName,
+                      requiresOnline: true,
+                    ),
+                    SizedBox(height: ResponsiveValues.spacingL(context)),
+                    AppTextField.password(
+                      controller: _passwordController,
+                      label: AppStrings.password,
+                      hint: AppStrings.enterPassword,
+                      enabled: !isOffline,
+                      validator: _validatePassword,
+                      requiresOnline: true,
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: ResponsiveValues.spacingXL(context)),
+              _buildFormSectionBanner(
+                step: '02',
+                title: AppStrings.paymentProof,
+                subtitle:
+                    'Upload the proof image, confirm the details, and submit.',
               ),
               SizedBox(height: ResponsiveValues.spacingL(context)),
-              AppTextField.password(
-                controller: _passwordController,
-                label: AppStrings.password,
-                hint: AppStrings.enterPassword,
-                enabled: !isOffline,
-                validator: _validatePassword,
-                requiresOnline: true,
-              ),
-              SizedBox(height: ResponsiveValues.spacingL(context)),
-              Text(
-                AppStrings.paymentProof,
-                style: AppTextStyles.labelMedium(context),
-              ),
-              SizedBox(height: ResponsiveValues.spacingS(context)),
               _buildProofUploadSection(),
               SizedBox(height: ResponsiveValues.spacingL(context)),
-              Row(
-                children: [
-                  SizedBox(
-                    width: ResponsiveValues.iconSizeM(context),
-                    height: ResponsiveValues.iconSizeM(context),
-                    child: Checkbox(
-                      value: _confirmAccuracy,
-                      onChanged: isOffline
-                          ? null
-                          : (value) =>
-                              setState(() => _confirmAccuracy = value ?? false),
-                      activeColor: AppColors.telegramBlue,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          ResponsiveValues.radiusSmall(context),
+              Container(
+                width: double.infinity,
+                padding: ResponsiveValues.cardPadding(context),
+                decoration: BoxDecoration(
+                  color: AppColors.getSurface(context).withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(
+                    ResponsiveValues.radiusMedium(context),
+                  ),
+                  border: Border.all(
+                    color:
+                        AppColors.getDivider(context).withValues(alpha: 0.14),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: ResponsiveValues.iconSizeM(context),
+                      height: ResponsiveValues.iconSizeM(context),
+                      child: Checkbox(
+                        value: _confirmAccuracy,
+                        onChanged: isOffline
+                            ? null
+                            : (value) => setState(
+                                  () => _confirmAccuracy = value ?? false,
+                                ),
+                        activeColor: AppColors.telegramBlue,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            ResponsiveValues.radiusSmall(context),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  SizedBox(width: ResponsiveValues.spacingM(context)),
-                  Expanded(
-                    child: Text(
-                      AppStrings.confirmAccuracy,
-                      style: AppTextStyles.bodyMedium(context).copyWith(
-                        color: isOffline
-                            ? AppColors.getTextSecondary(context)
-                                .withValues(alpha: 0.5)
-                            : AppColors.getTextPrimary(context),
+                    SizedBox(width: ResponsiveValues.spacingM(context)),
+                    Expanded(
+                      child: Text(
+                        AppStrings.confirmAccuracy,
+                        style: AppTextStyles.bodyMedium(context).copyWith(
+                          color: isOffline
+                              ? AppColors.getTextSecondary(context)
+                                  .withValues(alpha: 0.5)
+                              : AppColors.getTextPrimary(context),
+                          height: 1.45,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              SizedBox(height: ResponsiveValues.spacingXL(context)),
+              SizedBox(height: ResponsiveValues.spacingL(context)),
               if (_isSubmittingPayment) ...[
                 Container(
                   width: double.infinity,
@@ -996,6 +1050,58 @@ class _PaymentScreenState extends State<PaymentScreen>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildFormSectionBanner({
+    required String step,
+    required String title,
+    required String subtitle,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: ResponsiveValues.iconSizeL(context),
+          height: ResponsiveValues.iconSizeL(context),
+          decoration: BoxDecoration(
+            color: AppColors.telegramBlue.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(
+              ResponsiveValues.radiusMedium(context),
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            step,
+            style: AppTextStyles.labelSmall(context).copyWith(
+              color: AppColors.telegramBlue,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        SizedBox(width: ResponsiveValues.spacingM(context)),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: AppTextStyles.titleMedium(context).copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              SizedBox(height: ResponsiveValues.spacingXXS(context)),
+              Text(
+                subtitle,
+                style: AppTextStyles.bodySmall(context).copyWith(
+                  color: AppColors.getTextSecondary(context),
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -1151,7 +1257,8 @@ class _PaymentScreenState extends State<PaymentScreen>
       // ✅ Online submission with proof URL
       if (isMounted) {
         setState(() {
-          _submitStatusMessage = _settingsProvider.getPaymentSubmittingMessage();
+          _submitStatusMessage =
+              _settingsProvider.getPaymentSubmittingMessage();
         });
       }
 

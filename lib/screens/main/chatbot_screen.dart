@@ -290,12 +290,12 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       if (!isMounted) return;
 
       if (result.success) {
+        final resolvedConversationId = result.data?['conversationId'] ??
+            result.data?['conversation_id'];
         _scrollToBottom();
-        if (result.data != null &&
-            result.data!['conversationId'] != null &&
-            widget.conversationId == null) {
+        if (widget.conversationId == null && resolvedConversationId != null) {
           await GoRouter.of(context)
-              .replace('/chatbot?conv=${result.data!['conversationId']}');
+              .replace('/chatbot?conv=$resolvedConversationId');
         }
         setState(() => _initialLoadDone = true);
       } else {

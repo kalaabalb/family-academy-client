@@ -64,6 +64,12 @@ class ChatbotProvider extends ChangeNotifier
   final Map<int, DateTime?> _lastBackgroundRefreshMessages = {};
   static const Duration _minBackgroundInterval = Duration(minutes: 2);
 
+  int? _extractConversationId(Map<String, dynamic> data) {
+    final raw = data['conversation_id'] ?? data['conversationId'];
+    final parsed = Parsers.parseInt(raw, -1);
+    return parsed > 0 ? parsed : null;
+  }
+
   ChatbotProvider({
     required this.apiService,
     required this.connectivityService,
@@ -830,6 +836,9 @@ class ChatbotProvider extends ChangeNotifier
       );
 
       if (response.success && response.data != null) {
+        final resolvedConversationId =
+            _extractConversationId(response.data!) ?? conversationId;
+
         final aiMessage = ChatbotMessage(
           id: DateTime.now().millisecondsSinceEpoch + 1,
           role: 'assistant',
@@ -838,9 +847,44 @@ class ChatbotProvider extends ChangeNotifier
         );
         _messages.add(aiMessage);
 
+        if (resolvedConversationId != null) {
+          _loadedMessagesConversationId = resolvedConversationId;
+          final existingConversation = _conversations.firstWhere(
+            (c) => c.id == resolvedConversationId,
+            orElse: () => ChatbotConversation(
+              id: resolvedConversationId,
+              title: _currentConversation?.title ?? 'Conversation',
+              createdAt: _currentConversation?.createdAt ?? DateTime.now(),
+              updatedAt: DateTime.now(),
+              lastMessage: message,
+              lastMessageRole: 'user',
+              messageCount: _messages.length,
+            ),
+          );
+
+          _currentConversation = ChatbotConversation(
+            id: existingConversation.id,
+            title: existingConversation.title,
+            createdAt: existingConversation.createdAt,
+            updatedAt: DateTime.now(),
+            lastMessage: aiMessage.content,
+            lastMessageRole: 'assistant',
+            messageCount: _messages.length,
+          );
+
+          final existingIndex = _conversations.indexWhere(
+            (c) => c.id == resolvedConversationId,
+          );
+          if (existingIndex == -1) {
+            _conversations.insert(0, _currentConversation!);
+          } else {
+            _conversations[existingIndex] = _currentConversation!;
+          }
+        }
+
         final userId = await UserSession().getCurrentUserId();
         if (userId != null && _messagesBox != null) {
-          final convId = response.data!['conversation_id'] ?? conversationId;
+          final convId = resolvedConversationId;
           if (convId != null) {
             final messagesKey = 'user_${userId}_conv_${convId}_messages';
             await _messagesBox!.put(messagesKey, _messages);
@@ -859,8 +903,7 @@ class ChatbotProvider extends ChangeNotifier
         }
         _usageDayKey = _todayKey();
 
-        if (conversationId == null &&
-            response.data!['conversation_id'] != null) {
+        if (conversationId == null && resolvedConversationId != null) {
           unawaited(loadConversations(forceRefresh: true));
         }
 

@@ -2,6 +2,7 @@
 // PRODUCTION-READY FINAL VERSION - FIXED CONNECTIVITY CALL
 
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:hive/hive.dart';
@@ -70,6 +71,35 @@ class AuthProvider extends ChangeNotifier
   Map<String, dynamic>? _asStringMap(dynamic value) {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) return Map<String, dynamic>.from(value);
+    if (value is String && value.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(value);
+        return _asStringMap(decoded);
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  String? _extractAuthToken(Map<String, dynamic> payload) {
+    const tokenKeys = <String>[
+      'token',
+      'accessToken',
+      'access_token',
+      'authToken',
+      'auth_token',
+      'refreshToken',
+      'refresh_token',
+      'deviceToken',
+      'device_token',
+    ];
+
+    for (final key in tokenKeys) {
+      final value = payload[key];
+      if (value != null) {
+        final token = value.toString().trim();
+        if (token.isNotEmpty) return token;
+      }
+    }
     return null;
   }
 
@@ -77,13 +107,13 @@ class AuthProvider extends ChangeNotifier
     final normalizedResponse = _asStringMap(responseData);
     if (normalizedResponse == null) return null;
 
-    final nestedData = normalizedResponse['data'];
-    if (nestedData is Map) {
-      return Map<String, dynamic>.from(nestedData);
+    final nestedData = _asStringMap(normalizedResponse['data']);
+    if (nestedData != null && nestedData.isNotEmpty) {
+      return nestedData;
     }
 
-    if (normalizedResponse['user'] is Map ||
-        normalizedResponse['token'] != null ||
+    if (_asStringMap(normalizedResponse['user']) != null ||
+        _extractAuthToken(normalizedResponse) != null ||
         normalizedResponse['next_step'] != null) {
       return normalizedResponse;
     }
@@ -315,7 +345,7 @@ class AuthProvider extends ChangeNotifier
 
       if (response.success && payload != null) {
         final userData = _asStringMap(payload['user']);
-        final token = payload['token']?.toString();
+        final token = _extractAuthToken(payload);
 
         if (userData == null ||
             userData.isEmpty ||
@@ -323,8 +353,9 @@ class AuthProvider extends ChangeNotifier
             token.isEmpty) {
           return {
             'success': false,
-            'message':
-                'Unexpected login response from the server. Please update the app and try again.',
+            'message': response.message.isNotEmpty
+                ? response.message
+                : 'Unexpected login response from the server. Please update the app and try again.',
             'requiresDeviceChange': false,
           };
         }
@@ -527,7 +558,7 @@ class AuthProvider extends ChangeNotifier
 
       if (response.success && payload != null) {
         final userData = _asStringMap(payload['user']);
-        final token = payload['token']?.toString();
+        final token = _extractAuthToken(payload);
 
         if (userData == null ||
             userData.isEmpty ||
@@ -535,8 +566,9 @@ class AuthProvider extends ChangeNotifier
             token.isEmpty) {
           return {
             'success': false,
-            'message':
-                'Unexpected registration response from the server. Please update the app and try again.'
+            'message': response.message.isNotEmpty
+                ? response.message
+                : 'Unexpected registration response from the server. Please update the app and try again.'
           };
         }
 

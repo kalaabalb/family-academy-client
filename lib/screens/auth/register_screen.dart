@@ -131,7 +131,18 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) return AppStrings.passwordRequired;
-    if (value.length < 8) return AppStrings.passwordMinLength;
+    if (value.length < 6) {
+      return 'Password must be at least 6 characters';
+    }
+    if (!RegExp(r'[A-Z]').hasMatch(value)) {
+      return 'Password must include at least one uppercase letter';
+    }
+    if (!RegExp(r'[a-z]').hasMatch(value)) {
+      return 'Password must include at least one lowercase letter';
+    }
+    if (!RegExp(r'[0-9]').hasMatch(value)) {
+      return 'Password must include at least one number';
+    }
     return null;
   }
 

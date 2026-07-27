@@ -678,6 +678,35 @@ class ApiService {
   Map<String, dynamic>? _asStringMap(dynamic value) {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) return Map<String, dynamic>.from(value);
+    if (value is String && value.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(value);
+        return _asStringMap(decoded);
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  String? _extractAuthToken(Map<String, dynamic> payload) {
+    const tokenKeys = <String>[
+      'token',
+      'accessToken',
+      'access_token',
+      'authToken',
+      'auth_token',
+      'refreshToken',
+      'refresh_token',
+      'deviceToken',
+      'device_token',
+    ];
+
+    for (final key in tokenKeys) {
+      final value = payload[key];
+      if (value != null) {
+        final token = value.toString().trim();
+        if (token.isNotEmpty) return token;
+      }
+    }
     return null;
   }
 
@@ -707,11 +736,13 @@ class ApiService {
             Map<String, dynamic>.from(response.data as Map);
         final data = _asStringMap(normalizedResponse['data']) ??
             _asStringMap(normalizedResponse);
-        if (data == null || data['user'] == null || data['token'] == null) {
+        final userData = _asStringMap(data?['user']);
+        final token = data == null ? null : _extractAuthToken(data);
+        if (userData == null || token == null) {
           return ApiResponse<Map<String, dynamic>>(
             success: false,
             message:
-                'Unexpected registration response from the server. Please try again.',
+                'The server returned an incomplete registration response. Please try again.',
           );
         }
 
@@ -773,17 +804,28 @@ class ApiService {
             Map<String, dynamic>.from(response.data as Map);
         final data = _asStringMap(normalizedResponse['data']) ??
             _asStringMap(normalizedResponse);
-        if (data == null || data['user'] == null || data['token'] == null) {
+        final userData = _asStringMap(data?['user']);
+        final token = data == null ? null : _extractAuthToken(data);
+        if (data == null || userData == null || token == null) {
           return ApiResponse<Map<String, dynamic>>(
             success: false,
             message:
-                'Unexpected login response from the server. Please try again.',
+                'The server returned an incomplete login response. Please try again.',
           );
         }
 
-        await _writeToken(data['token'].toString());
-        if (data['deviceToken'] != null) {
-          await _writeRefreshToken(data['deviceToken'].toString());
+        await _writeToken(token);
+        final refreshToken = _extractAuthToken({
+          if (data['refreshToken'] != null)
+            'refreshToken': data['refreshToken'],
+          if (data['refresh_token'] != null)
+            'refresh_token': data['refresh_token'],
+          if (data['deviceToken'] != null) 'deviceToken': data['deviceToken'],
+          if (data['device_token'] != null)
+            'device_token': data['device_token'],
+        });
+        if (refreshToken != null) {
+          await _writeRefreshToken(refreshToken);
         }
 
         return ApiResponse<Map<String, dynamic>>(

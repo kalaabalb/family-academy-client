@@ -10,6 +10,7 @@ import '../../providers/settings_provider.dart';
 import '../../widgets/common/app_empty_state.dart';
 import '../../widgets/common/base_screen_mixin.dart';
 import '../../widgets/common/app_dialog.dart';
+import '../../widgets/common/app_shimmer.dart';
 import '../../services/snackbar_service.dart';
 import '../../utils/helpers.dart';
 import '../../utils/responsive.dart';
@@ -554,6 +555,9 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       confirmText: 'Start new',
     ).then((confirmed) {
       if (confirmed == true) {
+        if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+          Navigator.of(context).pop();
+        }
         _provider.clearCurrentConversation();
         GoRouter.of(context).go('/chatbot');
         setState(() => _initialLoadDone = false);
@@ -649,13 +653,50 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       return buildLoadingShimmer();
     }
 
+    if (_isSending && !hasMessages) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: ResponsiveValues.spacingXXXXL(context),
+          ),
+          child: AppCard.glass(
+            child: Padding(
+              padding: ResponsiveValues.cardPadding(context),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: ResponsiveValues.iconSizeL(context),
+                    height: ResponsiveValues.iconSizeL(context),
+                    child: const CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: ResponsiveValues.spacingM(context)),
+                  const Expanded(
+                    child: AppShimmer(
+                      type: ShimmerType.textLine,
+                      customWidth: 180,
+                      customHeight: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     // ✅ If we have messages, show them immediately
     if (hasMessages) {
       return ListView.builder(
         controller: _scrollController,
         padding: ResponsiveValues.modalHeaderPadding(context),
-        itemCount: _provider.messages.length,
+        itemCount: _provider.messages.length + (_isSending ? 1 : 0),
         itemBuilder: (context, index) {
+          if (_isSending && index == _provider.messages.length) {
+            return _buildTypingIndicator(context);
+          }
+
           final message = _provider.messages[index];
           final isUser = message.isUser;
 
@@ -743,6 +784,41 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           message: isOffline
               ? _settingsProvider.getChatbotOfflineMessage()
               : _settingsProvider.getChatbotWelcomeMessage(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypingIndicator(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: EdgeInsets.only(
+          bottom: ResponsiveValues.spacingS(context),
+          right: ResponsiveValues.spacingXXXXL(context),
+        ),
+        padding: ResponsiveValues.cardPadding(context),
+        decoration: BoxDecoration(
+          color: AppColors.getCard(context),
+          borderRadius: BorderRadius.circular(
+            ResponsiveValues.radiusXLarge(context),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: ResponsiveValues.iconSizeL(context),
+              height: ResponsiveValues.iconSizeL(context),
+              child: const CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: ResponsiveValues.spacingM(context)),
+            const AppShimmer(
+              type: ShimmerType.textLine,
+              customWidth: 130,
+              customHeight: 16,
+            ),
+          ],
         ),
       ),
     );

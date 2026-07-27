@@ -2689,7 +2689,7 @@ class SettingsProvider extends ChangeNotifier
     if (configured != null && configured.trim().isNotEmpty) {
       return configured.trim();
     }
-    return 'Ask your parent to use this code within {window}.';
+    return 'Ask your parent to use this code before it expires.';
   }
 
   String getParentLinkTokenMessageWithWindow() {

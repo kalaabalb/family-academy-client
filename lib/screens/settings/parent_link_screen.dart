@@ -713,7 +713,7 @@ class _ParentLinkScreenState extends State<ParentLinkScreen>
                       ),
                       SizedBox(height: ResponsiveValues.spacingXS(context)),
                       Text(
-                        _settingsProvider.getParentLinkTokenMessageWithWindow(),
+                        'Ask your parent to use this code before it expires.',
                         style: AppTextStyles.bodyMedium(context).copyWith(
                           color: AppColors.getTextSecondary(context),
                           height: 1.45,

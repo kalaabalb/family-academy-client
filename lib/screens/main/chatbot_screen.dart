@@ -135,6 +135,9 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           _initialLoadDone = true;
         }
       });
+      if (_provider.messages.isNotEmpty) {
+        _scrollToBottom();
+      }
     }
   }
 
@@ -162,12 +165,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     final currentConversationId = _provider.currentConversation?.id;
 
     if (routeConversationId == null) {
-      if (_provider.currentConversation != null ||
-          _provider.messages.isNotEmpty) {
-        _provider.clearCurrentConversation();
-        if (mounted) {
-          setState(() => _initialLoadDone = false);
-        }
+      if (mounted) {
+        setState(() => _initialLoadDone = _hasCompletedCurrentViewLoad());
       }
       return;
     }

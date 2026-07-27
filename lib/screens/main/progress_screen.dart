@@ -324,45 +324,6 @@ class _ProgressScreenState extends State<ProgressScreen>
     );
   }
 
-  Widget _buildStatCircle({
-    required String value,
-    required String label,
-    required Color color,
-    required IconData icon,
-  }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AppCard.solid(
-          child: Container(
-            width: ResponsiveValues.statCircleSize(context),
-            height: ResponsiveValues.statCircleSize(context),
-            padding: EdgeInsets.all(ResponsiveValues.spacingM(context)),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon,
-                    size: ResponsiveValues.iconSizeS(context), color: color),
-                SizedBox(height: ResponsiveValues.spacingXS(context)),
-                Text(
-                  value,
-                  style: AppTextStyles.titleMedium(context)
-                      .copyWith(fontWeight: FontWeight.w700),
-                ),
-              ],
-            ),
-          ),
-        ),
-        SizedBox(height: ResponsiveValues.spacingS(context)),
-        Text(
-          label,
-          style: AppTextStyles.labelSmall(context)
-              .copyWith(color: AppColors.getTextSecondary(context)),
-        ),
-      ],
-    );
-  }
-
   Widget _buildStatsSection({
     required int streakCount,
     required int chaptersStarted,
@@ -380,41 +341,108 @@ class _ProgressScreenState extends State<ProgressScreen>
       );
     }
 
-    return AppCard.stats(
-      child: Wrap(
-        alignment: WrapAlignment.spaceEvenly,
-        runSpacing: ResponsiveValues.spacingL(context),
-        spacing: ResponsiveValues.spacingL(context),
-        children: [
-          _buildStatCircle(
-            value: streakCount.toString(),
-            label: AppStrings.dayStreak,
-            color: AppColors.telegramBlue,
-            icon: Icons.local_fire_department_rounded,
+    final streakColor = streakCount >= 7
+        ? AppColors.telegramGreen
+        : streakCount >= 3
+            ? AppColors.telegramBlue
+            : AppColors.telegramYellow;
+
+    return AppCard.solid(
+      child: Container(
+        width: double.infinity,
+        padding: ResponsiveValues.cardPadding(context),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.telegramBlue.withValues(alpha: 0.08),
+              AppColors.telegramPurple.withValues(alpha: 0.05),
+            ],
           ),
-          _buildStatCircle(
-            value: chaptersStarted.toString(),
-            label: 'Started',
-            color: AppColors.telegramGreen,
-            icon: Icons.play_circle_rounded,
-          ),
-          _buildStatCircle(
-            value: '${averageVideoProgress.toStringAsFixed(0)}%',
-            label: 'Video progress',
-            color: averageVideoProgress >= 70
-                ? AppColors.telegramGreen
-                : averageVideoProgress >= 40
-                    ? AppColors.telegramYellow
-                    : AppColors.telegramRed,
-            icon: Icons.ondemand_video_rounded,
-          ),
-          _buildStatCircle(
-            value: _formatStudyTimeValue(studyTimeHours),
-            label: _formatStudyTimeUnit(studyTimeHours),
-            color: AppColors.telegramPurple,
-            icon: Icons.timer_rounded,
-          ),
-        ],
+          borderRadius:
+              BorderRadius.circular(ResponsiveValues.radiusLarge(context)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader(
+              title: 'Learning snapshot',
+              description:
+                  'A quick summary of your momentum and current activity.',
+            ),
+            Row(
+              children: [
+                Container(
+                  width: ResponsiveValues.iconSizeXXL(context),
+                  height: ResponsiveValues.iconSizeXXL(context),
+                  decoration: BoxDecoration(
+                    color: streakColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(
+                      ResponsiveValues.radiusLarge(context),
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.local_fire_department_rounded,
+                    size: ResponsiveValues.iconSizeS(context),
+                    color: streakColor,
+                  ),
+                ),
+                SizedBox(width: ResponsiveValues.spacingM(context)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$streakCount day streak',
+                        style: AppTextStyles.titleMedium(context).copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      SizedBox(height: ResponsiveValues.spacingXXS(context)),
+                      Text(
+                        'Chapters started: $chaptersStarted',
+                        style: AppTextStyles.bodySmall(context).copyWith(
+                          color: AppColors.getTextSecondary(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '${averageVideoProgress.toStringAsFixed(0)}%',
+                  style: AppTextStyles.titleLarge(context).copyWith(
+                    color: AppColors.telegramBlue,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: ResponsiveValues.spacingL(context)),
+            Wrap(
+              spacing: ResponsiveValues.spacingM(context),
+              runSpacing: ResponsiveValues.spacingM(context),
+              children: [
+                _buildDashboardMiniStat(
+                  label: 'Study time',
+                  value: _formatStudyTimeDisplay(studyTimeHours),
+                  icon: Icons.timer_rounded,
+                  color: AppColors.telegramPurple,
+                ),
+                _buildDashboardMiniStat(
+                  label: 'Video progress',
+                  value: '${averageVideoProgress.toStringAsFixed(0)}%',
+                  icon: Icons.ondemand_video_rounded,
+                  color: AppColors.telegramBlue,
+                ),
+                _buildDashboardMiniStat(
+                  label: 'Chapters started',
+                  value: '$chaptersStarted',
+                  icon: Icons.menu_book_rounded,
+                  color: AppColors.telegramGreen,
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -672,6 +700,51 @@ class _ProgressScreenState extends State<ProgressScreen>
               color: AppColors.getTextSecondary(context),
               height: 1.4,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDashboardMiniStat({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 122),
+      padding: EdgeInsets.symmetric(
+        horizontal: ResponsiveValues.spacingM(context),
+        vertical: ResponsiveValues.spacingS(context),
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(
+          ResponsiveValues.radiusMedium(context),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: ResponsiveValues.iconSizeS(context), color: color),
+          SizedBox(width: ResponsiveValues.spacingS(context)),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: AppTextStyles.labelSmall(context).copyWith(
+                  color: AppColors.getTextSecondary(context),
+                ),
+              ),
+              Text(
+                value,
+                style: AppTextStyles.bodyMedium(context).copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
         ],
       ),

@@ -41,6 +41,7 @@ class ParentLinkProvider extends ChangeNotifier
   String? _parentName;
   ParentLink? _parentLinkData;
   Duration? _serverTimeOffset;
+  bool _allowServerTokenRestore = true;
 
   Timer? _countdownTimer;
   DateTime? _lastNotifiedTokenExpiry;
@@ -173,6 +174,7 @@ class ParentLinkProvider extends ChangeNotifier
             _tokenExpiresAt = DateTime.parse(expiresAtStr);
           }
           _startCountdownTimer();
+          setLoaded();
           log('✅ Loaded parent token from Hive');
         }
       }
@@ -229,6 +231,7 @@ class ParentLinkProvider extends ChangeNotifier
     _stopCountdownTimer();
     _parentToken = null;
     _tokenExpiresAt = null;
+    _allowServerTokenRestore = false;
 
     final userId = await UserSession().getCurrentUserId();
     if (userId != null) {
@@ -431,6 +434,7 @@ class ParentLinkProvider extends ChangeNotifier
       if (_parentToken == null) {
         throw Exception('Token response did not include a usable token');
       }
+      _allowServerTokenRestore = true;
       _tokenExpiresAt = expiresAtMs != null
           ? DateTime.fromMillisecondsSinceEpoch(expiresAtMs, isUtc: true)
               .toLocal()
@@ -616,6 +620,7 @@ class ParentLinkProvider extends ChangeNotifier
         _updateFromParentLink(_parentLinkData!);
         if (_isLinked) {
           await _clearTokenState(notify: false);
+          _allowServerTokenRestore = false;
         }
         setLoaded();
         log('✅ Loaded parent link status from API');
@@ -666,17 +671,42 @@ class ParentLinkProvider extends ChangeNotifier
     _syncServerTime(parentLink.serverTime);
 
     if (!_isLinked) {
-      _parentToken = parentLink.token;
-      _tokenExpiresAt = parentLink.tokenExpiresAt;
+      final incomingToken = parentLink.token.trim();
+      final incomingExpiry = parentLink.tokenExpiresAt;
+      final hasActiveLocalToken = _parentToken != null &&
+          _tokenExpiresAt != null &&
+          !isTokenExpired;
+      final preserveLocalToken = _allowServerTokenRestore &&
+          hasActiveLocalToken &&
+          incomingToken != _parentToken;
+      final shouldAdoptIncomingToken =
+          _allowServerTokenRestore &&
+          (!hasActiveLocalToken || incomingToken == _parentToken);
 
-      if (_parentToken != null && _tokenExpiresAt != null) {
+      if (_allowServerTokenRestore && preserveLocalToken) {
+        log('Preserving local token over server refresh');
+      } else if (shouldAdoptIncomingToken) {
+        _parentToken = incomingToken;
+        _tokenExpiresAt = incomingExpiry;
         _startCountdownTimer();
         log('Token active, expires at: $_tokenExpiresAt');
+      } else if (!_allowServerTokenRestore) {
+        _parentToken = null;
+        _tokenExpiresAt = null;
+        _stopCountdownTimer();
+        log('Server token restore suppressed after unlink');
+      } else if (!hasActiveLocalToken) {
+        _parentToken = null;
+        _tokenExpiresAt = null;
+        _stopCountdownTimer();
+      } else {
+        log('Preserving local token state');
       }
     } else {
       _stopCountdownTimer();
       _parentToken = null;
       _tokenExpiresAt = null;
+      _allowServerTokenRestore = false;
       log('Parent linked, token cleared');
     }
   }
@@ -755,6 +785,7 @@ class ParentLinkProvider extends ChangeNotifier
         _linkedAt = null;
         _parentName = null;
         _parentLinkData = null;
+        _allowServerTokenRestore = false;
         await _clearTokenState(notify: false);
 
         setLoaded();

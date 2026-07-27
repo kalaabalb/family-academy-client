@@ -65,11 +65,17 @@ class _ProgressScreenState extends State<ProgressScreen>
 
   @override
   bool get isLoading =>
-      _progressProvider.isLoadingOverall && !_progressProvider.hasLoadedOverall;
+      _progressProvider.isLoadingOverall &&
+      !_progressProvider.hasLoadedOverall &&
+      !_hasData;
 
   @override
   bool get hasCachedData =>
-      _progressProvider.hasLoadedOverall || _progressProvider.hasLoadedProgress;
+      _hasData ||
+      _progressProvider.hasLoadedOverall ||
+      _progressProvider.hasLoadedProgress ||
+      _streakProvider.streak != null ||
+      _examProvider.hasLoadedResults;
 
   @override
   dynamic get errorMessage =>

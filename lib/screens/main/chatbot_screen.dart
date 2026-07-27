@@ -293,6 +293,9 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         final resolvedConversationId = result.data?['conversationId'] ??
             result.data?['conversation_id'];
         _scrollToBottom();
+        if (isMounted) {
+          setState(() => _isSending = false);
+        }
         if (widget.conversationId == null && resolvedConversationId != null) {
           await GoRouter.of(context)
               .replace('/chatbot?conv=$resolvedConversationId');

@@ -313,6 +313,251 @@ class _ProgressScreenState extends State<ProgressScreen>
     );
   }
 
+  Widget _buildProgressHero({
+    required int streakCount,
+    required int chaptersCompleted,
+    required int totalAvailableChapters,
+    required double totalAccuracy,
+    required double studyTimeHours,
+    required double averageVideoProgress,
+  }) {
+    final completionRatio = totalAvailableChapters > 0
+        ? (chaptersCompleted / totalAvailableChapters).clamp(0.0, 1.0)
+        : 0.0;
+    final completionPercent = (completionRatio * 100).clamp(0, 100).toStringAsFixed(0);
+    final hoursText = studyTimeHours >= 1
+        ? '${studyTimeHours.toStringAsFixed(1)}h'
+        : '${(studyTimeHours * 60).round()}m';
+
+    return AppCard.solid(
+      child: Container(
+        width: double.infinity,
+        padding: ResponsiveValues.cardPadding(context),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.telegramBlue.withValues(alpha: 0.14),
+              AppColors.telegramPurple.withValues(alpha: 0.08),
+              AppColors.telegramGreen.withValues(alpha: 0.05),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius:
+              BorderRadius.circular(ResponsiveValues.radiusLarge(context)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Your learning dashboard',
+                        style: AppTextStyles.headlineSmall(context).copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      SizedBox(height: ResponsiveValues.spacingXS(context)),
+                      Text(
+                        'A visual snapshot of study momentum, class completion, and exam performance.',
+                        style: AppTextStyles.bodySmall(context).copyWith(
+                          color: AppColors.getTextSecondary(context),
+                          height: 1.45,
+                        ),
+                      ),
+                      SizedBox(height: ResponsiveValues.spacingL(context)),
+                      Wrap(
+                        spacing: ResponsiveValues.spacingS(context),
+                        runSpacing: ResponsiveValues.spacingS(context),
+                        children: [
+                          _buildHeroChip(
+                            icon: Icons.local_fire_department_rounded,
+                            label: '$streakCount day streak',
+                            color: AppColors.telegramOrange,
+                          ),
+                          _buildHeroChip(
+                            icon: Icons.timer_rounded,
+                            label: hoursText,
+                            color: AppColors.telegramPurple,
+                          ),
+                          _buildHeroChip(
+                            icon: Icons.ondemand_video_rounded,
+                            label: '${averageVideoProgress.toStringAsFixed(0)}% video',
+                            color: AppColors.telegramBlue,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: ResponsiveValues.spacingL(context)),
+                Container(
+                  width: ResponsiveValues.iconSizeXXXL(context) * 1.9,
+                  height: ResponsiveValues.iconSizeXXXL(context) * 1.9,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.getSurface(context).withValues(alpha: 0.92),
+                    border: Border.all(
+                      color: AppColors.telegramBlue.withValues(alpha: 0.18),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox(
+                        width: ResponsiveValues.iconSizeXXXL(context) * 1.2,
+                        height: ResponsiveValues.iconSizeXXXL(context) * 1.2,
+                        child: CircularProgressIndicator(
+                          value: completionRatio,
+                          strokeWidth: 10,
+                          backgroundColor:
+                              AppColors.getDivider(context).withValues(alpha: 0.24),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            totalAccuracy >= 80
+                                ? AppColors.telegramGreen
+                                : totalAccuracy >= 60
+                                    ? AppColors.telegramBlue
+                                    : AppColors.telegramYellow,
+                          ),
+                        ),
+                      ),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '$completionPercent%',
+                            style: AppTextStyles.headlineSmall(context).copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          Text(
+                            'complete',
+                            style: AppTextStyles.labelSmall(context).copyWith(
+                              color: AppColors.getTextSecondary(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: ResponsiveValues.spacingL(context)),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildHeroMetric(
+                    title: 'Chapters completed',
+                    value: '$chaptersCompleted / $totalAvailableChapters',
+                    subtitle: 'Across the current catalog',
+                    color: AppColors.telegramGreen,
+                  ),
+                ),
+                SizedBox(width: ResponsiveValues.spacingM(context)),
+                Expanded(
+                  child: _buildHeroMetric(
+                    title: 'Current accuracy',
+                    value: '${totalAccuracy.toStringAsFixed(1)}%',
+                    subtitle: 'Based on finished work',
+                    color: totalAccuracy >= 80
+                        ? AppColors.telegramGreen
+                        : totalAccuracy >= 60
+                            ? AppColors.telegramBlue
+                            : AppColors.telegramYellow,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: ResponsiveValues.spacingM(context),
+        vertical: ResponsiveValues.spacingS(context),
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(ResponsiveValues.radiusFull(context)),
+        border: Border.all(color: color.withValues(alpha: 0.14)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: ResponsiveValues.iconSizeXS(context), color: color),
+          SizedBox(width: ResponsiveValues.spacingXS(context)),
+          Text(
+            label,
+            style: AppTextStyles.labelSmall(context).copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroMetric({
+    required String title,
+    required String value,
+    required String subtitle,
+    required Color color,
+  }) {
+    return Container(
+      padding: ResponsiveValues.cardPadding(context),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius:
+            BorderRadius.circular(ResponsiveValues.radiusMedium(context)),
+        border: Border.all(color: color.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: AppTextStyles.labelSmall(context).copyWith(
+              color: AppColors.getTextSecondary(context),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: ResponsiveValues.spacingXXS(context)),
+          Text(
+            value,
+            style: AppTextStyles.titleMedium(context).copyWith(
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+          SizedBox(height: ResponsiveValues.spacingXXS(context)),
+          Text(
+            subtitle,
+            style: AppTextStyles.bodySmall(context).copyWith(
+              color: AppColors.getTextSecondary(context),
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatShimmer() {
     return AppCard.solid(
       child: Container(
@@ -751,6 +996,75 @@ class _ProgressScreenState extends State<ProgressScreen>
     );
   }
 
+  Widget _buildMetricTile({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      width: MediaQuery.of(context).size.width >= 760 ? 220 : double.infinity,
+      padding: ResponsiveValues.cardPadding(context),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius:
+            BorderRadius.circular(ResponsiveValues.radiusMedium(context)),
+        border: Border.all(color: color.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: ResponsiveValues.iconSizeXL(context),
+            height: ResponsiveValues.iconSizeXL(context),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(
+                ResponsiveValues.radiusSmall(context),
+              ),
+            ),
+            child: Icon(
+              icon,
+              size: ResponsiveValues.iconSizeS(context),
+              color: color,
+            ),
+          ),
+          SizedBox(width: ResponsiveValues.spacingM(context)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppTextStyles.labelSmall(context).copyWith(
+                    color: AppColors.getTextSecondary(context),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: ResponsiveValues.spacingXXS(context)),
+                Text(
+                  value,
+                  style: AppTextStyles.titleSmall(context).copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: ResponsiveValues.spacingXXS(context)),
+                Text(
+                  subtitle,
+                  style: AppTextStyles.bodySmall(context).copyWith(
+                    color: AppColors.getTextSecondary(context),
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildProgressItem({
     required String title,
     required String value,
@@ -1145,109 +1459,76 @@ class _ProgressScreenState extends State<ProgressScreen>
       );
     }
 
-    Widget metric(String title, String value, IconData icon, Color color) {
-      return Container(
-        padding: ResponsiveValues.cardPadding(context),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius:
-              BorderRadius.circular(ResponsiveValues.radiusMedium(context)),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: ResponsiveValues.iconSizeS(context), color: color),
-            SizedBox(width: ResponsiveValues.spacingS(context)),
-            Expanded(
-              child: Text(
-                title,
-                style: AppTextStyles.bodySmall(context)
-                    .copyWith(color: AppColors.getTextSecondary(context)),
-              ),
-            ),
-            Text(
-              value,
-              style: AppTextStyles.titleSmall(context)
-                  .copyWith(fontWeight: FontWeight.w700),
-            ),
-          ],
-        ),
-      );
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionHeader(
           title: _settingsProvider.getProgressActivityDetailsTitle(),
           description:
-              'These numbers show started work, finished work, and activity totals separately.',
+              'A clean breakdown of what you have started, completed, and repeated.',
         ),
         AppCard.solid(
           child: Padding(
             padding: ResponsiveValues.cardPadding(context),
-            child: Column(
+            child: Wrap(
+              spacing: ResponsiveValues.spacingM(context),
+              runSpacing: ResponsiveValues.spacingM(context),
               children: [
-                metric(
-                  _settingsProvider.getProgressStartedChaptersTitle(),
-                  '$chaptersStarted',
-                  Icons.menu_book_rounded,
-                  AppColors.telegramBlue,
+                _buildMetricTile(
+                  title: _settingsProvider.getProgressStartedChaptersTitle(),
+                  value: '$chaptersStarted',
+                  subtitle: '$chaptersCompleted completed',
+                  icon: Icons.menu_book_rounded,
+                  color: AppColors.telegramBlue,
                 ),
-                SizedBox(height: ResponsiveValues.spacingS(context)),
-                metric(
-                  'Completed chapters',
-                  '$chaptersCompleted',
-                  Icons.task_alt_rounded,
-                  AppColors.telegramGreen,
+                _buildMetricTile(
+                  title: 'Completed chapters',
+                  value: '$chaptersCompleted',
+                  subtitle: '$overallCompletion% of available',
+                  icon: Icons.task_alt_rounded,
+                  color: AppColors.telegramGreen,
                 ),
-                SizedBox(height: ResponsiveValues.spacingS(context)),
-                metric(
-                  _settingsProvider.getProgressAverageVideoProgressTitle(),
-                  '${averageVideoProgress.toStringAsFixed(0)}%',
-                  Icons.bar_chart_rounded,
-                  AppColors.telegramBlue,
+                _buildMetricTile(
+                  title: _settingsProvider.getProgressAverageVideoProgressTitle(),
+                  value: '${averageVideoProgress.toStringAsFixed(0)}%',
+                  subtitle: '$videosCompleted fully watched',
+                  icon: Icons.ondemand_video_rounded,
+                  color: AppColors.telegramBlue,
                 ),
-                SizedBox(height: ResponsiveValues.spacingS(context)),
-                metric(
-                  'Fully watched chapters',
-                  '$videosCompleted',
-                  Icons.ondemand_video_rounded,
-                  AppColors.telegramPurple,
+                _buildMetricTile(
+                  title: AppStrings.notesViewed,
+                  value: '$notesViewed',
+                  subtitle: 'Notes opened',
+                  icon: Icons.note_alt_rounded,
+                  color: AppColors.telegramGreen,
                 ),
-                SizedBox(height: ResponsiveValues.spacingS(context)),
-                metric(
-                  AppStrings.notesViewed,
-                  '$notesViewed',
-                  Icons.note_alt_rounded,
-                  AppColors.telegramGreen,
+                _buildMetricTile(
+                  title: 'Practice checked',
+                  value: '$questionsAttempted',
+                  subtitle: 'Answers reviewed',
+                  icon: Icons.quiz_rounded,
+                  color: AppColors.telegramYellow,
                 ),
-                SizedBox(height: ResponsiveValues.spacingS(context)),
-                metric(
-                  'Practice checked',
-                  '$questionsAttempted',
-                  Icons.quiz_rounded,
-                  AppColors.telegramYellow,
+                _buildMetricTile(
+                  title: AppStrings.examsPassedTaken,
+                  value: '$examsPassed/$examsTaken',
+                  subtitle: 'Passed / taken',
+                  icon: Icons.assignment_turned_in_rounded,
+                  color: AppColors.telegramGreen,
                 ),
-                SizedBox(height: ResponsiveValues.spacingS(context)),
-                metric(
-                  'Course completion',
-                  '$overallCompletion%',
-                  Icons.track_changes_rounded,
-                  AppColors.telegramBlue,
+                _buildMetricTile(
+                  title: AppStrings.averageExamScore,
+                  value: '${averageExamScore.toStringAsFixed(1)}%',
+                  subtitle: 'Exam average',
+                  icon: Icons.leaderboard_rounded,
+                  color: AppColors.telegramBlue,
                 ),
-                SizedBox(height: ResponsiveValues.spacingS(context)),
-                metric(
-                  AppStrings.examsPassedTaken,
-                  '$examsPassed/$examsTaken',
-                  Icons.assignment_turned_in_rounded,
-                  AppColors.telegramGreen,
-                ),
-                SizedBox(height: ResponsiveValues.spacingS(context)),
-                metric(
-                  AppStrings.averageExamScore,
-                  '${averageExamScore.toStringAsFixed(1)}%',
-                  Icons.leaderboard_rounded,
-                  AppColors.telegramBlue,
+                _buildMetricTile(
+                  title: 'Course completion',
+                  value: '$overallCompletion%',
+                  subtitle: 'Overall completion',
+                  icon: Icons.track_changes_rounded,
+                  color: AppColors.telegramPurple,
                 ),
               ],
             ),
@@ -1379,6 +1660,15 @@ class _ProgressScreenState extends State<ProgressScreen>
           padding: EdgeInsets.all(ResponsiveValues.sectionPadding(context)),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
+              _buildProgressHero(
+                streakCount: streakCount,
+                chaptersCompleted: chaptersCompleted,
+                totalAvailableChapters: totalAvailableChapters,
+                totalAccuracy: totalAccuracy,
+                studyTimeHours: studyTimeHours,
+                averageVideoProgress: averageVideoProgress,
+              ),
+              SizedBox(height: ResponsiveValues.spacingL(context)),
               _buildSyncStatusBanner(),
               SizedBox(height: ResponsiveValues.spacingL(context)),
               _buildStatsSection(

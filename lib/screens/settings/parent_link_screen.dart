@@ -357,7 +357,12 @@ class _ParentLinkScreenState extends State<ParentLinkScreen>
                 ),
                 SizedBox(height: ResponsiveValues.spacingM(context)),
                 Text(
-                  _settingsProvider.getParentLinkTokenMessageWithWindow(),
+                  _settingsProvider
+                      .getParentLinkTokenMessage()
+                      .replaceAll(
+                        '{window}',
+                        _parentLinkProvider.remainingTimeFormatted,
+                      ),
                   textAlign: TextAlign.center,
                   style: AppTextStyles.bodySmall(
                     context,
@@ -757,9 +762,17 @@ class _ParentLinkScreenState extends State<ParentLinkScreen>
                 label: AppStrings.showToken,
                 icon: Icons.visibility_rounded,
                 onPressed: () {
-                  if (_parentLinkProvider.parentToken != null &&
-                      _parentLinkProvider.tokenExpiresAt != null) {
-                    _showTokenDialog(_parentLinkProvider.parentToken!);
+                  final token = _parentLinkProvider.parentToken?.trim();
+                  if (token != null &&
+                      token.isNotEmpty &&
+                      _parentLinkProvider.tokenExpiresAt != null &&
+                      !_parentLinkProvider.isTokenExpired) {
+                    _showTokenDialog(token);
+                  } else {
+                    SnackbarService().showInfo(
+                      context,
+                      'That token is no longer available. Generate a new one.',
+                    );
                   }
                 },
                 expanded: true,

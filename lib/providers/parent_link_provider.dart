@@ -167,7 +167,7 @@ class ParentLinkProvider extends ChangeNotifier
         final tokenKey = 'user_${userId}_token';
         final cachedToken = _tokenBox!.get(tokenKey);
         if (cachedToken != null && cachedToken is Map) {
-          _parentToken = cachedToken['token']?.toString();
+          _parentToken = _extractToken(Map<String, dynamic>.from(cachedToken));
           final expiresAtStr = cachedToken['expires_at']?.toString();
           if (expiresAtStr != null) {
             _tokenExpiresAt = DateTime.parse(expiresAtStr);
@@ -206,6 +206,45 @@ class ParentLinkProvider extends ChangeNotifier
   }
 
   bool get _hasData => _parentLinkData != null || _parentToken != null;
+
+  String? _extractToken(Map<String, dynamic> data) {
+    final candidates = [
+      data['token'],
+      data['parent_token'],
+      data['link_token'],
+      data['code'],
+    ];
+
+    for (final candidate in candidates) {
+      final value = candidate?.toString().trim();
+      if (value != null && value.isNotEmpty) {
+        return value;
+      }
+    }
+
+    return null;
+  }
+
+  Future<void> _clearTokenState({bool notify = true}) async {
+    _stopCountdownTimer();
+    _parentToken = null;
+    _tokenExpiresAt = null;
+
+    final userId = await UserSession().getCurrentUserId();
+    if (userId != null) {
+      if (_tokenBox != null) {
+        await _tokenBox!.delete('user_${userId}_token');
+      }
+      await deviceService.removeCacheItem(
+        AppConstants.parentTokenKey,
+        isUserSpecific: true,
+      );
+    }
+
+    if (notify) {
+      safeNotify();
+    }
+  }
 
   // ===== GETTERS =====
   String? get parentToken => _parentToken;
@@ -388,7 +427,10 @@ class ParentLinkProvider extends ChangeNotifier
                 : null),
       );
 
-      _parentToken = data['token'];
+      _parentToken = _extractToken(data);
+      if (_parentToken == null) {
+        throw Exception('Token response did not include a usable token');
+      }
       _tokenExpiresAt = expiresAtMs != null
           ? DateTime.fromMillisecondsSinceEpoch(expiresAtMs, isUtc: true)
               .toLocal()
@@ -572,17 +614,19 @@ class ParentLinkProvider extends ChangeNotifier
         }
 
         _updateFromParentLink(_parentLinkData!);
+        if (_isLinked) {
+          await _clearTokenState(notify: false);
+        }
         setLoaded();
         log('✅ Loaded parent link status from API');
       } else {
+        await _clearTokenState(notify: false);
         _parentLinkData = null;
         _isLinked = false;
         _parentTelegramUsername = null;
         _parentTelegramId = null;
         _linkedAt = null;
         _parentName = null;
-        _parentToken = null;
-        _tokenExpiresAt = null;
         setLoaded();
         log('⚠️ No parent link from API');
       }
@@ -709,10 +753,9 @@ class ParentLinkProvider extends ChangeNotifier
         _parentTelegramUsername = null;
         _parentTelegramId = null;
         _linkedAt = null;
-        _parentToken = null;
-        _tokenExpiresAt = null;
         _parentName = null;
         _parentLinkData = null;
+        await _clearTokenState(notify: false);
 
         setLoaded();
         _parentLinkUpdateController.add(null);

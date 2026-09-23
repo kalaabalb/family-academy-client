@@ -171,7 +171,7 @@ class ParentLinkProvider extends ChangeNotifier
           _parentToken = _extractToken(Map<String, dynamic>.from(cachedToken));
           final expiresAtStr = cachedToken['expires_at']?.toString();
           if (expiresAtStr != null) {
-            _tokenExpiresAt = DateTime.parse(expiresAtStr);
+            _tokenExpiresAt = _limitTokenExpiry(DateTime.parse(expiresAtStr));
           }
           _startCountdownTimer();
           setLoaded();
@@ -299,6 +299,13 @@ class ParentLinkProvider extends ChangeNotifier
     return _currentServerTime.isAfter(_tokenExpiresAt!);
   }
 
+  /// Codes are never valid for more than 30 minutes. This also corrects an
+  /// older cached token that was created before the shorter policy existed.
+  DateTime _limitTokenExpiry(DateTime expiresAt) {
+    final latestAllowed = _currentServerTime.add(const Duration(minutes: 30));
+    return expiresAt.isAfter(latestAllowed) ? latestAllowed : expiresAt;
+  }
+
   void _syncServerTime(DateTime? serverTime) {
     if (serverTime == null) return;
     _serverTimeOffset = serverTime.difference(DateTime.now());
@@ -311,8 +318,8 @@ class ParentLinkProvider extends ChangeNotifier
       return;
     }
 
-    final hasMatchingTimer = _countdownTimer != null &&
-        _lastNotifiedTokenExpiry == _tokenExpiresAt;
+    final hasMatchingTimer =
+        _countdownTimer != null && _lastNotifiedTokenExpiry == _tokenExpiresAt;
     if (hasMatchingTimer) {
       return;
     }
@@ -435,10 +442,10 @@ class ParentLinkProvider extends ChangeNotifier
         throw Exception('Token response did not include a usable token');
       }
       _allowServerTokenRestore = true;
-      _tokenExpiresAt = expiresAtMs != null
+      _tokenExpiresAt = _limitTokenExpiry(expiresAtMs != null
           ? DateTime.fromMillisecondsSinceEpoch(expiresAtMs, isUtc: true)
               .toLocal()
-          : DateTime.parse(data['expires_at']).toLocal();
+          : DateTime.parse(data['expires_at']).toLocal());
       _isLinked = false;
       _parentTelegramUsername = null;
       _parentTelegramId = null;
@@ -560,7 +567,8 @@ class ParentLinkProvider extends ChangeNotifier
         );
         if (cached != null) {
           final cachedParentLink = ParentLink.fromJson(cached);
-          final hasChanged = !_isSameParentLink(_parentLinkData, cachedParentLink);
+          final hasChanged =
+              !_isSameParentLink(_parentLinkData, cachedParentLink);
           _parentLinkData = cachedParentLink;
           _updateFromParentLink(_parentLinkData!);
           setLoaded();
@@ -673,21 +681,19 @@ class ParentLinkProvider extends ChangeNotifier
     if (!_isLinked) {
       final incomingToken = parentLink.token.trim();
       final incomingExpiry = parentLink.tokenExpiresAt;
-      final hasActiveLocalToken = _parentToken != null &&
-          _tokenExpiresAt != null &&
-          !isTokenExpired;
+      final hasActiveLocalToken =
+          _parentToken != null && _tokenExpiresAt != null && !isTokenExpired;
       final preserveLocalToken = _allowServerTokenRestore &&
           hasActiveLocalToken &&
           incomingToken != _parentToken;
-      final shouldAdoptIncomingToken =
-          _allowServerTokenRestore &&
+      final shouldAdoptIncomingToken = _allowServerTokenRestore &&
           (!hasActiveLocalToken || incomingToken == _parentToken);
 
       if (_allowServerTokenRestore && preserveLocalToken) {
         log('Preserving local token over server refresh');
       } else if (shouldAdoptIncomingToken) {
         _parentToken = incomingToken;
-        _tokenExpiresAt = incomingExpiry;
+        _tokenExpiresAt = _limitTokenExpiry(incomingExpiry);
         _startCountdownTimer();
         log('Token active, expires at: $_tokenExpiresAt');
       } else if (!_allowServerTokenRestore) {
